@@ -1,4 +1,4 @@
-name: Build QBASCONVERTER
+name: Build and Release QBASCONVERTER
 
 on:
   push:
@@ -6,54 +6,98 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+            artifact: QBASCONVERTER.exe
+            outname: QBASCONVERTER.exe
+          - os: ubuntu-latest
+            name: Linux
+            artifact: QBASCONVERTER
+            outname: QBASCONVERTER
+          - os: macos-latest
+            name: macOS
+            artifact: QBASCONVERTER
+            outname: QBASCONVERTER
+
+    runs-on: ${{ matrix.os }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install deps
-        run: pip install -r requirements.txt pyinstaller
-      - name: Build
-        run: pyinstaller build/qbasconverter.spec
-      - name: Upload
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller build/qbasconverter.spec --distpath dist --workpath build/work --clean
+
+      - name: Prepare package
+        shell: bash
+        run: |
+          mkdir -p package/${{ matrix.name }}
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp dist/QBASCONVERTER.exe package/${{ matrix.name }}/
+          else
+            cp dist/QBASCONVERTER package/${{ matrix.name }}/
+            chmod +x package/${{ matrix.name }}/QBASCONVERTER
+          fi
+          cp README.md package/${{ matrix.name }}/ 2>/dev/null || true
+          echo "QBASCONVERTER v3.1.8-pro - ${{ matrix.name }}" > package/${{ matrix.name }}/LEER.txt
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: QBASCONVERTER-Windows
-          path: dist/QBASCONVERTER.exe
+          name: QBASCONVERTER-${{ matrix.name }}
+          path: package/${{ matrix.name }}
 
-  build-linux:
+  release:
+    needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          python-version: '3.11'
-      - name: Install deps
-        run: pip install -r requirements.txt pyinstaller
-      - name: Build
-        run: pyinstaller build/qbasconverter.spec
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: QBASCONVERTER-Linux
-          path: dist/QBASCONVERTER
+          path: artifacts
 
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Create ZIP structure like QBAS-Recibos
+        run: |
+          mkdir -p release
+          for dir in artifacts/*; do
+            base=$(basename "$dir")
+            name=${base#QBASCONVERTER-}
+            mkdir -p "release/$name"
+            cp -r "$dir"/* "release/$name"/ 2>/dev/null || true
+          done
+          cp -r release/QBASCONVERTER-Release 2>/dev/null || true
+          rm -rf artifacts
+          cd release
+          zip -r ../QBASCONVERTER-v3.1.8-pro.zip Windows Linux macOS 2>/dev/null || zip -r ../QBASCONVERTER-v3.1.8-pro.zip *
+          cd ..
+          ls -lh QBASCONVERTER-v3.1.8-pro.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          python-version: '3.11'
-      - name: Install deps
-        run: pip install -r requirements.txt pyinstaller
-      - name: Build
-        run: pyinstaller build/qbasconverter.spec
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: QBASCONVERTER-macOS
-          path: dist/QBASCONVERTER
+          tag_name: ${{ github.ref_name }}
+          name: QBASCONVERTER v3.1.8-pro
+          draft: false
+          prerelease: false
+          files: |
+            QBASCONVERTER-v3.1.8-pro.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
