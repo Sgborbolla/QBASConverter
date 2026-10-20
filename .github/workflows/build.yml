@@ -16,16 +16,10 @@ jobs:
         include:
           - os: windows-latest
             name: Windows
-            artifact: QBASCONVERTER.exe
-            outname: QBASCONVERTER.exe
           - os: ubuntu-latest
             name: Linux
-            artifact: QBASCONVERTER
-            outname: QBASCONVERTER
           - os: macos-latest
             name: macOS
-            artifact: QBASCONVERTER
-            outname: QBASCONVERTER
 
     runs-on: ${{ matrix.os }}
 
@@ -40,11 +34,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build with PyInstaller
-        run: pyinstaller build/qbasconverter.spec --distpath dist --workpath build/work --clean
+      - name: Build
+        shell: bash
+        run: |
+          pyinstaller --onefile --name QBASCONVERTER qbasconverter.py
 
       - name: Prepare package
         shell: bash
@@ -56,8 +51,7 @@ jobs:
             cp dist/QBASCONVERTER package/${{ matrix.name }}/
             chmod +x package/${{ matrix.name }}/QBASCONVERTER
           fi
-          cp README.md package/${{ matrix.name }}/ 2>/dev/null || true
-          echo "QBASCONVERTER v3.1.8-pro - ${{ matrix.name }}" > package/${{ matrix.name }}/LEER.txt
+          echo "QBASCONVERTER v3.1.8-pro - ${{ matrix.name }} (TUI)" > package/${{ matrix.name }}/LEER.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -69,35 +63,28 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Create ZIP structure like QBAS-Recibos
+      - name: Pack
         run: |
           mkdir -p release
-          for dir in artifacts/*; do
-            base=$(basename "$dir")
-            name=${base#QBASCONVERTER-}
-            mkdir -p "release/$name"
-            cp -r "$dir"/* "release/$name"/ 2>/dev/null || true
+          for d in artifacts/*; do
+            n=$(basename $d | sed 's/QBASCONVERTER-//')
+            mkdir -p release/$n
+            cp -r $d/* release/$n/
           done
-          cp -r release/QBASCONVERTER-Release 2>/dev/null || true
-          rm -rf artifacts
           cd release
-          zip -r ../QBASCONVERTER-v3.1.8-pro.zip Windows Linux macOS 2>/dev/null || zip -r ../QBASCONVERTER-v3.1.8-pro.zip *
+          zip -r ../QBASCONVERTER-v3.1.8-pro.zip Windows Linux macOS
           cd ..
-          ls -lh QBASCONVERTER-v3.1.8-pro.zip
 
-      - name: Create Release
+      - name: Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: QBASCONVERTER v3.1.8-pro
-          draft: false
-          prerelease: false
-          files: |
-            QBASCONVERTER-v3.1.8-pro.zip
+          files: QBASCONVERTER-v3.1.8-pro.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
