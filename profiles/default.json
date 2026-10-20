@@ -1,0 +1,15 @@
+{
+  "name": "Español · Dual Audio",
+  "format": "mp4",
+  "quality": "Alta",
+  "video_codec": "h264",
+  "video_preset_cpu": "medium",
+  "video_preset_gpu": "p5",
+  "crf": 18,
+  "audio_bitrate": "256k",
+  "audio_codec": "aac",
+  "resolution": "origen",
+  "fps": "origen",
+  "dual_audio": true,
+  "subtitles": "copy"
+}

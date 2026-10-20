@@ -1,0 +1,59 @@
+name: Build QBASCONVERTER
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt pyinstaller
+      - name: Build
+        run: pyinstaller build/qbasconverter.spec
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: QBASCONVERTER-Windows
+          path: dist/QBASCONVERTER.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt pyinstaller
+      - name: Build
+        run: pyinstaller build/qbasconverter.spec
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: QBASCONVERTER-Linux
+          path: dist/QBASCONVERTER
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt pyinstaller
+      - name: Build
+        run: pyinstaller build/qbasconverter.spec
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: QBASCONVERTER-macOS
+          path: dist/QBASCONVERTER

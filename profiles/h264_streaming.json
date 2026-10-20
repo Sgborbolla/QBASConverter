@@ -1,0 +1,15 @@
+{
+  "name": "H.264_STREAMING",
+  "format": "mp4",
+  "quality": "Media",
+  "video_codec": "h264",
+  "video_preset_cpu": "veryfast",
+  "video_preset_gpu": "p4",
+  "crf": 23,
+  "audio_bitrate": "128k",
+  "audio_codec": "aac",
+  "resolution": "720p",
+  "fps": "origen",
+  "dual_audio": true,
+  "subtitles": "copy"
+}
