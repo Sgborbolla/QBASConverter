@@ -1,4 +1,4 @@
-name: Build and Release QBASCONVERTER
+name: Build and Release QBASCONVERTER GUI
 
 on:
   push:
@@ -16,75 +16,57 @@ jobs:
         include:
           - os: windows-latest
             name: Windows
+            exe: QBASCONVERTER.exe
           - os: ubuntu-latest
             name: Linux
+            exe: QBASCONVERTER
           - os: macos-latest
             name: macOS
+            exe: QBASCONVERTER
 
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Install dependencies
+      - name: Build
         run: |
           pip install pyinstaller
-
-      - name: Build
+          pyinstaller --onefile --windowed --name QBASCONVERTER qbasconverter.py
+      - name: Package
         shell: bash
         run: |
-          pyinstaller --onefile --name QBASCONVERTER qbasconverter.py
-
-      - name: Prepare package
-        shell: bash
-        run: |
-          mkdir -p package/${{ matrix.name }}
+          mkdir -p pkg/${{ matrix.name }}
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp dist/QBASCONVERTER.exe package/${{ matrix.name }}/
+            cp dist/QBASCONVERTER.exe pkg/${{ matrix.name }}/
           else
-            cp dist/QBASCONVERTER package/${{ matrix.name }}/
-            chmod +x package/${{ matrix.name }}/QBASCONVERTER
+            cp dist/QBASCONVERTER pkg/${{ matrix.name }}/ && chmod +x pkg/${{ matrix.name }}/QBASCONVERTER
           fi
-          echo "QBASCONVERTER v3.1.8-pro - ${{ matrix.name }} (TUI)" > package/${{ matrix.name }}/LEER.txt
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+          echo "QBASCONVERTER v3.1.8-pro (GUI)" > pkg/${{ matrix.name }}/LEER.txt
+      - uses: actions/upload-artifact@v4
         with:
           name: QBASCONVERTER-${{ matrix.name }}
-          path: package/${{ matrix.name }}
+          path: pkg/${{ matrix.name }}
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          path: artifacts
-
-      - name: Pack
+          path: a
+      - name: ZIP
         run: |
-          mkdir -p release
-          for d in artifacts/*; do
-            n=$(basename $d | sed 's/QBASCONVERTER-//')
-            mkdir -p release/$n
-            cp -r $d/* release/$n/
-          done
-          cd release
-          zip -r ../QBASCONVERTER-v3.1.8-pro.zip Windows Linux macOS
-          cd ..
-
+          mkdir r
+          for d in a/*; do n=$(basename $d | sed 's/QBASCONVERTER-//'); mkdir -p r/$n; cp -r $d/* r/$n/; done
+          cd r && zip -r ../QBASCONVERTER-GUI-v3.1.8-pro.zip Windows Linux macOS && cd ..
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: QBASCONVERTER v3.1.8-pro
-          files: QBASCONVERTER-v3.1.8-pro.zip
+          tag_name: v3.1.8-pro
+          name: QBASCONVERTER v3.1.8-pro (GUI)
+          files: QBASCONVERTER-GUI-v3.1.8-pro.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
