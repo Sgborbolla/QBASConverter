@@ -70,11 +70,13 @@ public sealed partial class VentanaDoble : Form
         DoubleBuffered = true;
         Estilo.DobleBuffer(this);
 
-        CargarUnidades();
         AplicarTema();
 
         Load += (_, _) =>
         {
+            // Los discos se leen en segundo plano: la ventana ya esta pintada y
+            // no se queda en negro esperando a unidades de red que no responden.
+            CargarUnidades();
             IniciarVigia();
             IniciarAutosave();
             EngancharTrabajos();
@@ -305,13 +307,59 @@ public sealed partial class VentanaDoble : Form
         // (el vigia ya lleva su propio antirrebote de 700 ms).
     }
 
-    /// <summary>Reescanea las unidades reales y repinta SOLO si algo cambio de verdad.</summary>
+    /// <summary>
+    /// Reescanea las unidades reales SIN bloquear la ventana: el sondeo de discos y
+    /// de unidades de red puede tardar, asi que se hace en segundo plano y solo se
+    /// toca la interfaz cuando ya hay resultados.
+    /// </summary>
     private void CargarUnidades(bool forzar = false)
     {
+        if (Interlocked.Exchange(ref _cargandoDiscos, 1) == 1) return;
+
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            var unidades = new List<DeviceInfo>();
+            var portatiles = new List<PortableDevice>();
+            try
+            {
+                lock (_candadoDiscos)
+                {
+                    unidades.AddRange(_dispositivos.Scan(includeSystem: true));
+                    portatiles.AddRange(PortableDeviceScanner.Scan());
+                }
+            }
+            catch { }
+
+            try
+            {
+                if (IsHandleCreated && !IsDisposed)
+                {
+                    BeginInvoke(() =>
+                    {
+                        Interlocked.Exchange(ref _cargandoDiscos, 0);
+                        AplicarUnidades(unidades, portatiles, forzar);
+                    });
+                    return;
+                }
+            }
+            catch { }
+
+            Interlocked.Exchange(ref _cargandoDiscos, 0);
+        });
+    }
+
+    private readonly object _candadoDiscos = new();
+    private int _cargandoDiscos;
+
+    /// <summary>Pinta en el hilo de la ventana lo que devolvio el sondeo en segundo plano.</summary>
+    private void AplicarUnidades(List<DeviceInfo> unidades, List<PortableDevice> portatiles, bool forzar)
+    {
+        if (IsDisposed || _lblCuentaDiscos == null) return;
+
         _unidades.Clear();
+        _unidades.AddRange(unidades);
         _portatiles.Clear();
-        try { _unidades.AddRange(_dispositivos.Scan(includeSystem: true)); } catch { }
-        try { _portatiles.AddRange(PortableDeviceScanner.Scan()); } catch { }
+        _portatiles.AddRange(portatiles);
         _lblCuentaDiscos.Text = $"{_unidades.Count} unidades · {_portatiles.Count} portátiles";
 
         // Si la lista es la misma, NO se destruyen y se recrean las filas: eso era

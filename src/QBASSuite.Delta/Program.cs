@@ -31,7 +31,33 @@ internal static class Program
         }
         catch { }
 
-        Application.Run(new VentanaDoble(icono));
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        Application.ThreadException += (_, e) => Avisar(e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => Avisar(e.ExceptionObject as Exception);
+
+        try
+        {
+            Application.Run(new VentanaDoble(icono));
+        }
+        catch (Exception ex)
+        {
+            Avisar(ex);
+        }
         return 0;
+    }
+
+    /// <summary>
+    /// Si algo falla, se ve un mensaje claro en vez de una ventana vacia o negra.
+    /// </summary>
+    private static void Avisar(Exception? ex)
+    {
+        try
+        {
+            MessageBox.Show(
+                "QBASFreemanCopy-Converter no pudo arrancar:\n\n" + (ex?.ToString() ?? "error desconocido"),
+                "QBASFreemanCopy-Converter",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch { }
     }
 }
