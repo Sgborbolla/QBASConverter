@@ -165,6 +165,11 @@ public sealed partial class VentanaDoble : Form
         PintarReloj();
 
         AplicarAjustesGuardados();
+
+        // Cerrar el SuspendLayout de arriba: sin esto los controles no se colocan
+        // y la ventana se queda en negro.
+        raiz.ResumeLayout(true);
+        raiz.PerformLayout();
     }
 
     private Panel BarraSuperior()

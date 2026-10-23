@@ -631,7 +631,36 @@ public sealed partial class VentanaDoble
         }
         if (ficheros.Count == 0) { Mensaje("No hay archivos que copiar en el origen."); return; }
 
-        var destinos = _destinos.Select(d => new Destino
+        // --- comprobaciones antes de lanzar: nada de fallos silenciosos ---
+        var validos = new List<string>();
+        var avisos = new List<string>();
+        foreach (var d in _destinos)
+        {
+            var info = UnidadDe(d);
+            if (!Directory.Exists(d))
+            {
+                avisos.Add($"{info?.Display ?? d}: no está disponible");
+                continue;
+            }
+            var libre = info?.FreeSpace ?? 0;
+            var necesario = ficheros.Sum(f => f.Length);
+            if (libre > 0 && necesario > libre)
+            {
+                avisos.Add($"{info?.Display ?? d}: faltan {Human.Size(necesario - libre)}");
+                continue;
+            }
+            validos.Add(d);
+        }
+
+        if (validos.Count == 0)
+        {
+            Mensaje("Ningún disco de destino sirve: " + string.Join("; ", avisos));
+            return;
+        }
+        if (avisos.Count > 0)
+            Mensaje("Se omite(n) " + avisos.Count + " disco(s): " + string.Join("; ", avisos));
+
+        var destinos = validos.Select(d => new Destino
         {
             Raiz = d,
             Etiqueta = UnidadDe(d)?.Display ?? d,

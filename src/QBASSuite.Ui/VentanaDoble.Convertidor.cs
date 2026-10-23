@@ -117,17 +117,26 @@ public sealed partial class VentanaDoble
         t.Controls.Add(fila2, 0, 2);
 
         // 4) casillas, como en la captura (dos columnas)
-        var casillas = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, BackColor = _tema.Panel };
+        var casillas = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3, BackColor = _tema.Panel };
         casillas.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         casillas.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         _chkEstructura = new CheckBox { Text = "Mantener carpetas", AutoSize = true, ForeColor = _tema.Tinta };
         _chkBorrarOriginal = new CheckBox { Text = "Borrar original si salió bien", AutoSize = true, ForeColor = _tema.Tinta };
         _chkNoReconvertir = new CheckBox { Text = "No reconvertir lo ya hecho", AutoSize = true, Checked = true, ForeColor = _tema.Tinta };
         _chkAbrirAlTerminar = new CheckBox { Text = "Abrir carpeta al terminar", AutoSize = true, Checked = true, ForeColor = _tema.Tinta };
+        _chkGpu = new CheckBox
+        {
+            Text = ConversionEngine.Disponible && !string.IsNullOrWhiteSpace(ConversionEngine.DetectarGpu())
+                ? $"Usar GPU ({ConversionEngine.NombreGpu()})"
+                : "Usar GPU (si hay)",
+            AutoSize = true, Checked = true, ForeColor = _tema.Tinta
+        };
         casillas.Controls.Add(_chkEstructura, 0, 0);
         casillas.Controls.Add(_chkNoReconvertir, 1, 0);
         casillas.Controls.Add(_chkBorrarOriginal, 0, 1);
         casillas.Controls.Add(_chkAbrirAlTerminar, 1, 1);
+        casillas.Controls.Add(_chkGpu, 0, 2);
+        casillas.SetColumnSpan(_chkGpu, 2);
         t.Controls.Add(casillas, 0, 3);
 
         return t;
