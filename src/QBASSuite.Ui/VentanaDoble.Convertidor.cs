@@ -98,21 +98,21 @@ public sealed partial class VentanaDoble
         // 3) donde se guarda
         var fila2 = new FlowLayoutPanel { Dock = DockStyle.Fill, BackColor = _tema.Panel, WrapContents = false, Padding = new Padding(0, 4, 0, 0) };
         fila2.Controls.Add(Etiqueta("Guardar:"));
-        _cmbSalida = new ComboBox { Width = 250, DropDownStyle = ComboBoxStyle.DropDownList };
+        _cmbSalida = new ComboBox { Width = 180, DropDownStyle = ComboBoxStyle.DropDownList };
         _cmbSalida.Items.AddRange(new object[] { "Subcarpeta junto al original", "Misma carpeta del original", "Carpeta fija que yo elija" });
         _cmbSalida.SelectedIndex = 0;
         _cmbSalida.SelectedIndexChanged += (_, _) => PintarResumenSalida();
         fila2.Controls.Add(_cmbSalida);
 
         fila2.Controls.Add(Etiqueta("Nombre:"));
-        _txtSubcarpeta = new TextBox { Width = 100, Text = "Convertidos" };
+        _txtSubcarpeta = new TextBox { Width = 82, Text = "Convertidos" };
         _txtSubcarpeta.TextChanged += (_, _) => PintarResumenSalida();
         fila2.Controls.Add(_txtSubcarpeta);
 
-        var btnCarpeta = new BotonRedondo(_tema) { Text = "Carpeta fija…", Width = 108, Radio = 8 };
+        var btnCarpeta = new BotonRedondo(_tema) { Text = "Carpeta…", Width = 92, Radio = 8 };
         btnCarpeta.Click += (_, _) => ElegirCarpetaFija();
         fila2.Controls.Add(btnCarpeta);
-        _txtCarpetaFija = new TextBox { Width = 150, ReadOnly = true, BorderStyle = BorderStyle.FixedSingle };
+        _txtCarpetaFija = new TextBox { Width = 120, ReadOnly = true, BorderStyle = BorderStyle.FixedSingle };
         fila2.Controls.Add(_txtCarpetaFija);
         t.Controls.Add(fila2, 0, 2);
 

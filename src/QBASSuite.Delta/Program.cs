@@ -37,6 +37,15 @@ internal static class Program
 
         try
         {
+            // Atajo para revisar el diseno de Opciones sin abrir la ventana principal.
+            if (args.Any(a => string.Equals(a, "--opciones", StringComparison.OrdinalIgnoreCase)))
+            {
+                var seccion = args.SkipWhile(a => !string.Equals(a, "--opciones", StringComparison.OrdinalIgnoreCase))
+                                  .Skip(1).FirstOrDefault() ?? "general";
+                Application.Run(new VentanaOpciones(Tema.PorDefecto, () => { }, seccion));
+                return 0;
+            }
+
             Application.Run(new VentanaDoble(icono));
         }
         catch (Exception ex)

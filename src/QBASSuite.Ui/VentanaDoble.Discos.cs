@@ -467,8 +467,10 @@ public sealed partial class VentanaDoble
     {
         var ancho = _panelDiscos?.ClientSize.Width ?? 0;
         if (ancho < 80) ancho = 480;
-        var w = ancho - 24;
-        if (_panelDiscos != null && _panelDiscos.VerticalScroll.Visible) w -= 18;
+        // Se reserva siempre el hueco de la barra de desplazamiento: si se descuenta
+        // solo cuando ya es visible, las ultimas filas quedan debajo de ella y se
+        // cortan el porcentaje y los botones.
+        var w = ancho - 34;
         return Math.Max(200, w);
     }
 

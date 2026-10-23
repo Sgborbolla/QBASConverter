@@ -112,9 +112,9 @@ public sealed partial class VentanaDoble : Form
             _partidor.Panel1MinSize = 0;
             _partidor.Panel2MinSize = 0;
 
-            // 36% para el convertidor, el resto para los discos.
+            // 44% para el convertidor (necesita el ancho para las casillas), el resto discos.
             var min = Math.Min(200, Math.Max(70, ancho / 5));
-            var objetivo = (int)(ancho * 0.36);
+            var objetivo = (int)(ancho * 0.44);
             if (objetivo < min) objetivo = min;
             if (objetivo > ancho - min) objetivo = ancho - min;
             if (objetivo > 0 && objetivo < ancho) _partidor.SplitterDistance = objetivo;
@@ -176,34 +176,30 @@ public sealed partial class VentanaDoble : Form
 
     private Panel BarraSuperior()
     {
-        var p = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel, Padding = new Padding(12, 6, 12, 6) };
+        var p = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel, Padding = new Padding(12, 4, 12, 4) };
 
-        _logo = new PanelLogo { Dock = DockStyle.Left, Width = 52 };
-        _logo.EtiquetaForma = () => _tema.Forma;
-        _logo.EtiquetaTinta = () => _tema.Acento;
-        _logo.EtiquetaSombra = () => _tema.AcentoSuave;
-        p.Controls.Add(_logo);
-
+        var textos = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel, Padding = new Padding(6, 2, 8, 2) };
         var titulo = new Label
         {
-            Text = "QBASFreemanCopy-Converter", Dock = DockStyle.Left, Width = 260,
+            Text = "QBASFreemanCopy-Converter", Dock = DockStyle.Top, Height = 28,
             Font = new Font("Segoe UI", 13.5f, FontStyle.Bold),
-            ForeColor = _tema.Acento, TextAlign = ContentAlignment.MiddleLeft
+            ForeColor = _tema.Acento, TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true
         };
-        p.Controls.Add(titulo);
-
         var subtitulo = new Label
         {
-            Text = "Convertidor (izq.) + Multicopiador (der.)  ·  nativo de Windows, sin puertos, sin licencias",
-            Dock = DockStyle.Fill, Font = new Font("Segoe UI", 9f),
-            ForeColor = _tema.Tinta2, TextAlign = ContentAlignment.MiddleLeft
+            Text = "Nativo de Windows  ·  sin puertos  ·  sin licencias",
+            Dock = DockStyle.Top, Height = 18, Font = new Font("Segoe UI", 8.75f),
+            ForeColor = _tema.Tinta2, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
-        p.Controls.Add(subtitulo);
+        textos.Controls.Add(subtitulo);
+        textos.Controls.Add(titulo);
+        p.Controls.Add(textos);
 
         var der = new FlowLayoutPanel
         {
-            Dock = DockStyle.Right, Width = 430, FlowDirection = FlowDirection.RightToLeft,
-            WrapContents = false, Padding = new Padding(0, 4, 0, 0), BackColor = _tema.Panel
+            Dock = DockStyle.Right, Width = 386, FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false, Padding = new Padding(0, 6, 0, 0), BackColor = _tema.Panel
         };
         var bOpciones = new Button
         {
@@ -217,7 +213,7 @@ public sealed partial class VentanaDoble : Form
         der.Controls.Add(bOpciones);
         _cmbTema = new ComboBox
         {
-            Width = 190, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 9f)
+            Width = 168, DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 9f)
         };
         foreach (var t in Tema.Todos) _cmbTema.Items.Add(t.Nombre);
         var idx = Tema.Todos.ToList().FindIndex(t => string.Equals(t.Nombre, CargarTemaGuardado(), StringComparison.OrdinalIgnoreCase));
@@ -232,6 +228,12 @@ public sealed partial class VentanaDoble : Form
         der.Controls.Add(_cmbTema);
         der.Controls.Add(new Label { Text = "Tema:", AutoSize = true, ForeColor = _tema.Tinta2, Padding = new Padding(0, 5, 6, 0) });
         p.Controls.Add(der);
+
+        _logo = new PanelLogo { Dock = DockStyle.Left, Width = 52 };
+        _logo.EtiquetaForma = () => _tema.Forma;
+        _logo.EtiquetaTinta = () => _tema.Acento;
+        _logo.EtiquetaSombra = () => _tema.AcentoSuave;
+        p.Controls.Add(_logo);
 
         return p;
     }

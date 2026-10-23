@@ -22,7 +22,7 @@ public enum Icono
 
     // --- acciones generales ---
     Convertir, Pausa, Seguir, Detener, Refrescar, AnadirCarpeta, AnadirArchivo,
-    Quitar, Papelera, AbrirCarpeta, Guardar, Ajustes, Lupa, Prioridad, Editar,
+    Quitar, Papelera, AbrirCarpeta, Guardar, Ajustes, Lupa, Prioridad, Editar, Dinero,
 
     // --- dispositivos ---
     DiscoDuro, Ssd, Usb, Pendrive, DiscoLento, Optico, Telefono, Camara, TarjetaSd, Reproductor,
@@ -82,6 +82,7 @@ public static class Iconos
             case Icono.Lupa:        Lupa(g, pluma); break;
             case Icono.Prioridad:   Estrella(g, relleno); break;
             case Icono.Editar:      Lapiz(g, pluma, tinta); break;
+            case Icono.Dinero:      Moneda(g, pluma, tinta); break;
 
             case Icono.DiscoDuro:   Disco(g, pluma, tenue, tinta, sistema: false); break;
             case Icono.Sistema:     Disco(g, pluma, tenue, tinta, sistema: true); break;
@@ -311,6 +312,15 @@ public static class Iconos
     {
         g.DrawEllipse(p, 6, 6, 14, 14);
         g.DrawLine(p, 19, 19, 26, 26);
+    }
+
+    private static void Moneda(Graphics g, Pen p, Color tinta)
+    {
+        g.DrawEllipse(p, 4.5f, 4.5f, 23f, 23f);
+        using var fuente = new Font("Segoe UI", 14f, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var brocha = new SolidBrush(tinta);
+        var medida = g.MeasureString("$", fuente);
+        g.DrawString("$", fuente, brocha, 16f - medida.Width / 2f, 16f - medida.Height / 2f + 0.5f);
     }
 
     private static void Estrella(Graphics g, Brush b)

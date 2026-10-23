@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 
 namespace QBASSuite.Ui;
@@ -135,28 +135,11 @@ internal static class Opciones
 
     /// <summary>Interruptor: se enciende y apaga cuando quieras y se guarda solo.</summary>
     public static Control Interruptor(Tema t, string clave, string etiqueta, string ayuda, Action guardar)
-    {
-        var cont = new Panel { AutoSize = true, MinimumSize = new Size(600, 30), BackColor = t.Panel, Margin = new Padding(0, 2, 0, 2) };
-        var chk = new CheckBox
+        => Controles.Interruptor(t, etiqueta, ayuda, LeerBooleano(clave, false), valor =>
         {
-            Text = etiqueta, AutoSize = true, Checked = LeerBooleano(clave, false),
-            ForeColor = t.Tinta, BackColor = Color.Transparent, Font = new Font("Segoe UI", 9.5f),
-            Location = new Point(0, 5)
-        };
-        chk.CheckedChanged += (_, _) => { Guardar(clave, chk.Checked); guardar(); };
-        cont.Controls.Add(chk);
-        if (!string.IsNullOrWhiteSpace(ayuda))
-        {
-            var l = new Label
-            {
-                Text = ayuda, AutoSize = true, ForeColor = t.Tinta2, Location = new Point(24, 24),
-                Font = new Font("Segoe UI", 8.25f)
-            };
-            cont.Controls.Add(l);
-            cont.Height = 44;
-        }
-        return cont;
-    }
+            Guardar(clave, valor);
+            guardar();
+        });
 
     /// <summary>Desplegable que se guarda solo.</summary>
     public static Control Desplegable(Tema t, string clave, string etiqueta, string[] opciones, Action guardar)
@@ -199,28 +182,13 @@ internal static class Opciones
         return cont;
     }
 
-    /// <summary>Rueda con su numero: se guarda sola.</summary>
+    /// <summary>Barra deslizadora con su numero: se guarda sola.</summary>
     public static Control Rueda(Tema t, string clave, string etiqueta, string unidad, int porDefecto, int min, int max, int paso, Action guardar)
-    {
-        var cont = new Panel { AutoSize = true, MinimumSize = new Size(600, 34), BackColor = t.Panel, Margin = new Padding(0, 4, 0, 4) };
-        cont.Controls.Add(new Label { Text = etiqueta, AutoSize = true, ForeColor = t.Tinta, Location = new Point(0, 8) });
-
-        var valor = LeerEntero(clave, porDefecto);
-        var num = new NumericUpDown
+        => Controles.Deslizador(t, etiqueta, unidad, "", LeerEntero(clave, porDefecto), min, max, paso, valor =>
         {
-            Width = 80, Minimum = min, Maximum = max, Increment = paso,
-            Value = Math.Clamp(valor, min, max), BackColor = t.Panel2, ForeColor = t.Tinta,
-            BorderStyle = BorderStyle.FixedSingle, TextAlign = HorizontalAlignment.Right
-        };
-        num.ValueChanged += (_, _) => { Guardar(clave, (int)num.Value); guardar(); };
-
-        var etiquetaAncho = TextRenderer.MeasureText(etiqueta, cont.Font).Width;
-        num.Location = new Point(Math.Min(etiquetaAncho + 12, 320), 5);
-        cont.Controls.Add(num);
-        if (!string.IsNullOrWhiteSpace(unidad))
-            cont.Controls.Add(new Label { Text = unidad, AutoSize = true, ForeColor = t.Tinta2, Location = new Point(num.Right + 8, 9) });
-        return cont;
-    }
+            Guardar(clave, valor);
+            guardar();
+        });
 
     /// <summary>Lista simple de rutas guardadas (solo lectura).</summary>
     public static Control ListaRutas(Tema t, string clave)
@@ -249,3 +217,4 @@ internal static class Opciones
         Font = new Font("Segoe UI", 8.5f), Margin = new Padding(0, 0, 0, 6)
     };
 }
+

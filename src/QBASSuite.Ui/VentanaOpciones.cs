@@ -29,24 +29,25 @@ public sealed class VentanaOpciones : Form
     private Panel _laterales = null!;
     private Panel _pagina = null!;
     private Label _titulo = null!;
-    private readonly List<(SeccionOpcion sec, Button boton)> _botones = new();
+    private readonly List<(SeccionOpcion sec, BotonSeccion boton)> _botones = new();
     private string _actual = "general";
 
-    public VentanaOpciones(Tema tema, Action alCambiar)
+    public VentanaOpciones(Tema tema, Action alCambiar, string inicial = "general")
     {
         _tema = tema;
         _alCambiar = alCambiar;
 
         Text = "QBASFreemanCopy-Converter · Opciones";
         StartPosition = FormStartPosition.CenterParent;
-        ClientSize = new Size(980, 640);
-        MinimumSize = new Size(820, 540);
+        ClientSize = new Size(1000, 680);
+        MinimumSize = new Size(860, 560);
         Font = new Font("Segoe UI", 9f);
         BackColor = _tema.Fondo;
         ForeColor = _tema.Tinta;
+        DoubleBuffered = true;
 
         Construir();
-        Mostrar("general");
+        Mostrar(inicial);
     }
 
     private void Construir()
@@ -56,46 +57,60 @@ public sealed class VentanaOpciones : Form
             Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2,
             BackColor = _tema.Fondo, Margin = new Padding(0), Padding = new Padding(0)
         };
-        raiz.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 250));
+        raiz.SuspendLayout();
+        raiz.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 268));
         raiz.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 68));
         raiz.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        // --- cabecera: titulo + cierre ---
-        var cab = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel, Padding = new Padding(14, 8, 10, 8) };
-        var logo = new PanelIcono { Dock = DockStyle.Left, Width = 44, Icono = Icono.Ajustes, Tinta = () => _tema.Acento, Sombra = () => _tema.AcentoSuave };
-        cab.Controls.Add(logo);
+        // --- cabecera: logo, titulo y subtitulo ---
+        var cab = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel, Padding = new Padding(18, 0, 14, 0) };
+        cab.Paint += (_, e) =>
+        {
+            using var p = new Pen(_tema.Linea, 1f);
+            e.Graphics.DrawLine(p, 0, cab.Height - 1, cab.Width, cab.Height - 1);
+        };
+
+        var logo = new PanelIcono { Dock = DockStyle.Left, Width = 46, Icono = Icono.Ajustes, Tinta = () => _tema.Acento, Sombra = () => _tema.AcentoSuave };
+
+        var textos = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel, Padding = new Padding(6, 12, 0, 10) };
         _titulo = new Label
         {
-            Text = "OPCIONES", Dock = DockStyle.Fill, ForeColor = _tema.Acento,
-            Font = new Font("Segoe UI", 14f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft,
-            Padding = new Padding(8, 0, 0, 0)
+            Text = "OPCIONES", Dock = DockStyle.Top, Height = 28, ForeColor = _tema.Tinta,
+            Font = new Font("Segoe UI", 14f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft
         };
-        cab.Controls.Add(_titulo);
-        var cerrar = new Button { Text = "Cerrar", Dock = DockStyle.Right, Width = 90, FlatStyle = FlatStyle.Flat, BackColor = _tema.Panel2, ForeColor = _tema.Tinta };
+        var sub = new Label
+        {
+            Text = "Todo se guarda solo, al instante. Sin botón de aceptar.",
+            Dock = DockStyle.Top, Height = 20, ForeColor = _tema.Tinta2,
+            Font = new Font("Segoe UI", 8.75f), TextAlign = ContentAlignment.MiddleLeft
+        };
+        textos.Controls.Add(sub);
+        textos.Controls.Add(_titulo);
+        cab.Controls.Add(textos);
+
+        var cerrar = new BotonRedondo(_tema) { Text = "Cerrar", Dock = DockStyle.Right, Width = 92, Height = 34, Primario = false, Radio = 9 };
         cerrar.Click += (_, _) => Close();
-        cab.Controls.Add(cerrar);
+        var cajaCerrar = new Panel { Dock = DockStyle.Right, Width = 100, BackColor = _tema.Panel, Padding = new Padding(0, 17, 0, 0) };
+        cajaCerrar.Controls.Add(cerrar);
+        cerrar.Dock = DockStyle.Fill;
+        cab.Controls.Add(cajaCerrar);
+        cab.Controls.Add(logo);
+
         raiz.Controls.Add(cab, 0, 0);
         raiz.SetColumnSpan(cab, 2);
 
-        // --- barra lateral: una seccion debajo de otra ---
-        _laterales = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel2, AutoScroll = true, Padding = new Padding(0, 6, 0, 6) };
+        // --- barra lateral ---
+        _laterales = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Fondo, AutoScroll = true, Padding = new Padding(0, 10, 0, 10) };
         var flujo = new FlowLayoutPanel
         {
             Dock = DockStyle.Top, FlowDirection = FlowDirection.TopDown, WrapContents = false,
-            AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, BackColor = _tema.Panel2, Padding = new Padding(0)
+            AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, BackColor = _tema.Fondo, Padding = new Padding(0)
         };
         foreach (var s in SeccionOpcion.Todas)
         {
             var sec = s;
-            var b = new Button
-            {
-                Text = "   " + sec.Nombre,
-                Width = 236, Height = 40, FlatStyle = FlatStyle.Flat, TextAlign = ContentAlignment.MiddleLeft,
-                ImageAlign = ContentAlignment.MiddleLeft, TextImageRelation = TextImageRelation.ImageBeforeText,
-                Image = Iconos.Bitmap(sec.Icono, 20, _tema.Tinta, _tema.AcentoSuave),
-                BackColor = _tema.Panel2, ForeColor = _tema.Tinta, Padding = new Padding(10, 0, 0, 0)
-            };
+            var b = new BotonSeccion(_tema, sec.Nombre, sec.Icono) { Width = 252, Margin = new Padding(0, 1, 0, 1) };
             b.Click += (_, _) => Mostrar(sec.Id);
             flujo.Controls.Add(b);
             _botones.Add((sec, b));
@@ -104,10 +119,11 @@ public sealed class VentanaOpciones : Form
         raiz.Controls.Add(_laterales, 0, 1);
 
         // --- pagina de la derecha ---
-        _pagina = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel, Padding = new Padding(18, 14, 18, 14), AutoScroll = true };
+        _pagina = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel, Padding = new Padding(28, 20, 24, 10), AutoScroll = true };
         raiz.Controls.Add(_pagina, 1, 1);
 
         Controls.Add(raiz);
+        raiz.ResumeLayout(true);
     }
 
     private void Mostrar(string id)
@@ -115,15 +131,16 @@ public sealed class VentanaOpciones : Form
         _actual = id;
         var sec = SeccionOpcion.PorId(id) ?? SeccionOpcion.Todas[0];
         foreach (var (s, b) in _botones)
-        {
-            var activo = s.Id == id;
-            b.BackColor = activo ? _tema.Acento : _tema.Panel2;
-            b.ForeColor = activo ? _tema.SobreAcento : _tema.Tinta;
-            b.Image = Iconos.Bitmap(s.Icono, 20, activo ? _tema.SobreAcento : _tema.Tinta, _tema.AcentoSuave);
-        }
-        if (_titulo != null) _titulo.Text = sec.Nombre.ToUpperInvariant();
+            b.Activo = s.Id == id;
 
-        _pagina.Controls.Clear();
+        if (_titulo != null) _titulo.Text = "OPCIONES · " + sec.Nombre.ToUpperInvariant();
+
+        foreach (Control viejo in _pagina.Controls.Cast<Control>().ToArray())
+        {
+            _pagina.Controls.Remove(viejo);
+            viejo.Dispose();
+        }
+
         var contenido = sec.Construir(_tema, Guardar);
         contenido.Dock = DockStyle.Top;
         _pagina.Controls.Add(contenido);
@@ -139,16 +156,12 @@ public sealed class VentanaOpciones : Form
     //  Piezas de interfaz reutilizables
     // =====================================================================
 
-    internal static Label Titulo(Tema t, string texto) => new()
-    {
-        Text = texto, AutoSize = true, ForeColor = t.Acento,
-        Font = new Font("Segoe UI", 10f, FontStyle.Bold), Margin = new Padding(0, 4, 0, 10)
-    };
+    internal static Label Titulo(Tema t, string texto) => new TituloSeccion(t, texto);
 
     internal static Label Nota(Tema t, string texto) => new()
     {
-        Text = texto, AutoSize = true, ForeColor = t.Tinta2, MaximumSize = new Size(640, 0),
-        Margin = new Padding(0, 0, 0, 12)
+        Text = texto, AutoSize = true, ForeColor = t.Tinta2, Font = new Font("Segoe UI", 8.75f),
+        MaximumSize = new Size(660, 0), Margin = new Padding(0, 0, 0, 10)
     };
 
     /// <summary>Panel con un icono propio pintado (para cabeceras).</summary>
