@@ -1,0 +1,17 @@
+<Solution>
+
+  <!--
+    QBASFREEMAN. Un solo programa, una sola ventana con las dos mitades
+    (multicopiador a la izquierda y convertidor a la derecha). Todo nativo
+    de Windows: sin navegador, sin servidor y sin puerto.
+  -->
+  <Folder Name="/Nucleo/">
+    <Project Path="src/QBASSuite.Core/QBASSuite.Core.csproj" />
+    <Project Path="src/QBASSuite.Ui/QBASSuite.Ui.csproj" />
+  </Folder>
+
+  <Folder Name="/Programa/">
+    <Project Path="src/QBASSuite.Delta/QBASSuite.Delta.csproj" />
+  </Folder>
+
+</Solution>

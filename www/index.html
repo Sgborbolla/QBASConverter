@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QBAS Suite</title>
+<link rel="icon" href="assets/img/logo-qbas-suite.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/qbas.css">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+</head>
+<body>
+
+<header class="qbas-cabecera">
+  <div class="qbas-marca">
+    <img src="assets/img/logo-qbas-suite.svg" alt="QBAS Suite">
+    <div>
+      <strong>QBAS Suite</strong>
+      <span>Copia · Convierte · Controla · Vigila</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:var(--qbas-space-lg)">
+    <span class="label">Servidor local</span>
+    <span class="chip verde" id="estado">conectando…</span>
+  </div>
+</header>
+
+<aside class="qbas-lateral">
+  <div class="label">Navegación</div>
+  <nav>
+    <a class="activo" href="#inicio">Inicio</a>
+    <a href="#delta">Delta · Copiador</a>
+    <a href="#conversor">QBASCONVERTER</a>
+    <a href="#panel">Panel de estadísticas</a>
+    <a href="#observador">Observador</a>
+  </nav>
+  <div style="margin-top:auto" class="tarjeta">
+    <div class="label">Motor</div>
+    <div class="mono" id="version">—</div>
+    <div class="silencio" style="font-size:var(--qbas-t-label-sm)">Todo local. Sin internet.</div>
+  </div>
+</aside>
+
+<main class="qbas-cuerpo">
+  <div class="qbas-pagina">
+
+    <section id="inicio">
+      <h1>QBAS Suite</h1>
+      <p class="silencio">Una sola instalacion, un solo lanzador, cuatro programas que trabajan juntos.</p>
+    </section>
+
+    <section class="rejilla c4" id="programas">
+      <article class="tarjeta" id="delta">
+        <h3>Delta · Copiador</h3>
+        <p class="silencio">Copia a varios destinos a la vez: lee una vez del origen y escribe en todas las unidades a la vez, con verificacion SHA-256.</p>
+        <a class="boton" href="#delta">Abrir</a>
+      </article>
+      <article class="tarjeta" id="conversor">
+        <h3>QBASCONVERTER</h3>
+        <p class="silencio">Convierte video y audio por lotes, con perfiles propios, marca de agua y aceleracion por tarjeta.</p>
+        <a class="boton secundario" href="#conversor">Abrir</a>
+      </article>
+      <article class="tarjeta" id="panel">
+        <h3>Panel</h3>
+        <p class="silencio">Cuanto se copio, a que velocidad y con que resultado. Historial completo y reportes para imprimir.</p>
+        <a class="boton secundario" href="#panel">Abrir</a>
+      </article>
+      <article class="tarjeta" id="observador">
+        <h3>Observador</h3>
+        <p class="silencio">Anota que entra y sale de las unidades conectadas, aunque nadie use el copiador.</p>
+        <a class="boton secundario" href="#observador">Abrir</a>
+      </article>
+    </section>
+
+    <section class="tarjeta">
+      <h3>Estado de la maquina</h3>
+      <div class="rejilla c2">
+        <div>
+          <div class="label">Nucleos</div>
+          <div class="mono" id="nucleos">—</div>
+        </div>
+        <div>
+          <div class="label">Unidades externas</div>
+          <div class="mono" id="unidades">—</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

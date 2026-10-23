@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>QBASSuite.Ui</RootNamespace>
+    <AssemblyName>QBASSuite.Ui</AssemblyName>
+    <!--
+      Ventana compartida, 100% nativa de Windows (WinForms).
+      Sin navegador, sin servidor y sin puerto: no se abre nada de red.
+    -->
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QBASSuite.Core\QBASSuite.Core.csproj" />
+  </ItemGroup>
+
+</Project>

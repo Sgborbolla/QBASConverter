@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#002A8F" />
+      <stop offset="100%" stop-color="#0B1A30" />
+    </linearGradient>
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#DE2110" />
+      <stop offset="100%" stop-color="#9B111E" />
+    </linearGradient>
+  </defs>
+  <!-- Background rounded squircle -->
+  <rect x="2" y="2" width="44" height="44" rx="10" fill="url(#blueGrad)" stroke="#ffffff" stroke-opacity="0.2" stroke-width="1.5"/>
+  <!-- Cuban Flag Chevron Motif (Equilateral triangle on left) -->
+  <polygon points="4,4 22,24 4,44" fill="url(#redGrad)" opacity="0.95" />
+  <!-- White star in chevron -->
+  <polygon points="10,18.5 11.8,22.2 15.8,22.6 12.8,25.2 13.7,29.1 10,27 6.3,29.1 7.2,25.2 4.2,22.6 8.2,22.2" fill="#FFFFFF"/>
+  <!-- Multi-copy arrows fan-out -->
+  <path d="M25 15 L38 15 M33 11 L38 15 L33 19" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M25 24 L42 24 M37 20 L42 24 L37 28" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M25 33 L38 33 M33 29 L38 33 L33 37" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

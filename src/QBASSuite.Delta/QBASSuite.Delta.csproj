@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>QBASSuite.Delta</RootNamespace>
+    <!-- El lanzador se llama QBASFreemanCopy-Converter.exe. -->
+    <AssemblyName>QBASFreemanCopy-Converter</AssemblyName>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Icono del .exe: combinacion de copiador + convertidor. -->
+    <ApplicationIcon>..\..\QBASFreemanCopy-Converter (lanzador).ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QBASSuite.Core\QBASSuite.Core.csproj" />
+    <ProjectReference Include="..\QBASSuite.Ui\QBASSuite.Ui.csproj" />
+  </ItemGroup>
+
+  <!-- ffmpeg real para el convertidor y los iconos viajan junto al ejecutable. -->
+  <ItemGroup>
+    <Content Include="..\..\tools\ffmpeg\ffmpeg.exe" LinkBase="ffmpeg" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\tools\ffmpeg\ffmpeg.exe')" />
+    <Content Include="..\..\QBASFreemanCopy-Converter.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\QBASFreemanCopy-Converter (convertidor).ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\QBASFreemanCopy-Converter (lanzador).ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

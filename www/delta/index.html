@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QBASFREEMAN · Multicopiador</title>
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<style>
+  :root{
+    /* Mezcla real: tema oscuro de mio.png + estructura limpia de Stitch + identidad propia */
+    --fondo:#1c1f21; --bar:#242729; --panel:#282b2d; --panel-2:#2f3234; --linea:#3a3e40;
+    --teal:#2d8a86; --teal-2:#3f7578; --teal-claro:#5fd3c8; --teal-osc:#24403e;
+    --tinta:#e9eeee; --tinta-2:#9aa6a6; --tenue:#6d7878;
+    --azul:#2f7fe0; --verde:#2ea36a; --rojo:#e0463c; --ambar:#e0a233; --morado:#a86ee0;
+    --radio:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Inter,system-ui,"Segoe UI",sans-serif;background:var(--fondo);color:var(--tinta);overflow:hidden;font-size:13px}
+  .app{display:flex;flex-direction:column;height:100%}
+
+  /* ---------- Barra superior (de mio.png, limpia estilo Stitch) ---------- */
+  .top{background:var(--bar);border-bottom:1px solid var(--linea);display:flex;align-items:center;gap:14px;padding:8px 14px}
+  .top .logo{width:34px;height:34px;border-radius:8px;background:#fff;object-fit:contain;padding:2px}
+  .top .tb{display:flex;flex-direction:column;line-height:1.15}
+  .top .tb b{font-size:13.5px;letter-spacing:.3px;color:var(--tinta)}
+  .top .tb span{font-size:10.5px;color:var(--tenue)}
+  .top .sp{flex:1}
+  .top .btn{background:var(--panel-2);border:1px solid var(--linea);color:var(--tinta);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .top .btn:hover{background:#383c3e}
+  .top .btn.teal{background:var(--teal);border-color:var(--teal);color:#05201e}
+  .top .btn.teal:hover{background:var(--teal-claro)}
+  .top .btn.rojo{background:transparent;border-color:var(--rojo);color:#ff8b83}
+
+  /* ---------- Cuerpo: DOS MITADES ---------- */
+  .mitades{flex:1;display:grid;grid-template-columns:1fr 1px 1fr;min-height:0}
+  .divisor{background:var(--teal-claro);opacity:.55}
+  .mitad{display:flex;flex-direction:column;min-height:0}
+
+  /* Cabecera de cada mitad, tipo pestaña */
+  .mhead{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--panel);border-bottom:1px solid var(--linea)}
+  .mhead .pt{width:9px;height:9px;border-radius:50%;background:var(--teal-claro)}
+  .mhead b{font-size:12.5px;letter-spacing:.4px;text-transform:uppercase}
+  .mhead .sp{flex:1}
+  .mhead .mini{font-size:10.5px;color:var(--tenue)}
+
+  /* MITAD A: multicopiador (estructura Stitch, fondo panel) */
+  .copiar .cuerpo{display:grid;grid-template-columns:230px 1fr;gap:8px;padding:8px;flex:1;min-height:0}
+  .tarjeta{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .tarjeta h3{margin:0;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--teal-claro);padding:9px 11px;border-bottom:1px solid var(--linea);display:flex;align-items:center;gap:7px}
+  .tarjeta h3 .n{background:var(--teal);color:#05201e;border-radius:20px;font-size:9.5px;font-weight:800;padding:1px 7px}
+  .lst{overflow:auto;flex:1;padding:5px}
+
+  /* fila de unidad (real, estilo mio.png: nombre + fs + letra + uso + barra) */
+  .u{display:grid;grid-template-columns:20px 1fr auto;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;cursor:pointer}
+  .u:hover{background:var(--panel-2)}
+  .u.on{background:var(--teal-osc);box-shadow:inset 0 0 0 1px var(--teal-claro)}
+  .u .ic{font-size:15px;text-align:center}
+  .u .tt{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .u .tt small{display:block;font-weight:400;font-size:10px;color:var(--tinta-2)}
+  .u .rt{text-align:right;font-size:10px;color:var(--tinta-2);font-variant-numeric:tabular-nums}
+  .u .rt .libre{color:var(--teal-claro);font-weight:700}
+  .u .bmin{height:3px;background:#3a3e40;border-radius:3px;width:70px;margin-top:3px;overflow:hidden}
+  .u .bmin i{display:block;height:100%;background:var(--teal-claro)}
+  .u .chk{color:var(--verde);font-weight:800}
+
+  /* navegador central */
+  .nav{display:flex;flex-direction:column;gap:8px;min-height:0}
+  .ruta{display:flex;gap:6px;align-items:center;background:var(--panel);border:1px solid var(--linea);border-radius:8px;padding:7px 9px}
+  .ruta button{background:var(--panel-2);border:1px solid var(--linea);color:var(--teal-claro);border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:700;cursor:pointer}
+  .ruta button:hover{background:#3a3e40}
+  .ruta input{flex:1;background:var(--fondo);border:1px solid var(--linea);color:var(--tinta);border-radius:7px;padding:6px 9px;font-size:11.5px;font-family:inherit}
+  .ruta input:focus{outline:2px solid var(--teal)}
+  .duo{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px;min-height:0}
+  .f{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:7px;cursor:pointer;font-size:12px}
+  .f:hover{background:var(--panel-2)}
+  .f .ic{width:18px;text-align:center}
+  .f .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .f .sz{font-size:10px;color:var(--tenue);font-variant-numeric:tabular-nums}
+  .vacio{padding:20px 12px;text-align:center;color:var(--tenue);font-size:11.5px}
+
+  /* MITAD B: convertidor (estructura mio.png izquierda: perfil + casillas + CONVERTIR) */
+  .convertir .cuerpo{display:grid;grid-template-columns:1fr 260px;gap:8px;padding:8px;flex:1;min-height:0}
+  .campo{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .campo label{font-size:10.5px;color:var(--tinta-2);text-transform:uppercase;letter-spacing:.5px;min-width:78px}
+  .campo select,.campo input[type=text]{flex:1;background:var(--fondo);border:1px solid var(--linea);color:var(--tinta);border-radius:7px;padding:6px 9px;font-size:12px;font-family:inherit}
+  .campo select:focus,.campo input:focus{outline:2px solid var(--teal)}
+  .checks{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;margin:4px 0 8px}
+  .checks label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tinta-2);cursor:pointer}
+  .checks input{accent-color:var(--teal);width:14px;height:14px}
+  .cola{flex:1;overflow:auto;border:1px solid var(--linea);border-radius:8px;background:var(--fondo);padding:6px}
+  .q{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;font-size:11.5px}
+  .q:nth-child(odd){background:rgba(255,255,255,.02)}
+  .q .st{font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px}
+  .st.ok{background:rgba(46,163,106,.18);color:#5fd08e}
+  .st.run{background:rgba(47,127,224,.18);color:#7fb6f5}
+  .st.wait{background:rgba(224,162,51,.16);color:#e8bd6a}
+  .st.err{background:rgba(224,70,60,.18);color:#ff8b83}
+  .accion{background:var(--panel);border:1px solid var(--linea);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px}
+  .btnconv{background:var(--azul);border:none;color:#fff;border-radius:9px;padding:12px;font-size:14px;font-weight:800;letter-spacing:.5px;cursor:pointer;text-transform:uppercase}
+  .btnconv:hover{background:#4a95ef}
+  .minis{display:flex;gap:6px;justify-content:center}
+  .minis button{width:34px;height:30px;border-radius:7px;background:var(--panel-2);border:1px solid var(--linea);color:var(--tinta-2);cursor:pointer;font-size:13px}
+  .minis button:hover{background:#3a3e40;color:var(--tinta)}
+  .reloj{font-family:"JetBrains Mono",monospace;font-size:20px;text-align:center;color:var(--tinta);font-variant-numeric:tabular-nums}
+
+  /* ---------- Barra inferior de estado (de mio.png) ---------- */
+  .bot{background:var(--bar);border-top:1px solid var(--linea);display:flex;align-items:center;gap:16px;padding:5px 14px;font-size:11px;color:var(--tinta-2)}
+  .bot b{color:var(--teal-claro);font-variant-numeric:tabular-nums}
+  .bot .v{width:3px;height:12px;background:var(--linea)}
+  .bot .sp{flex:1}
+  .prog{height:6px;background:#3a3e40;border-radius:5px;overflow:hidden;width:220px}
+  .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--teal-claro));transition:width .25s}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== BARRA SUPERIOR ===== -->
+  <div class="top">
+    <img class="logo" src="../assets/img/qbasf-logo.png" onerror="this.style.display='none'">
+    <div class="tb">
+      <b>QBASFREEMAN</b>
+      <span>Multicopiador + Convertidor · todo real de esta PC</span>
+    </div>
+    <div class="sp"></div>
+    <button class="btn" id="btnEscanear">↻ Escanear</button>
+    <button class="btn teal" id="btnCopiar">▶ Copiar</button>
+    <button class="btn rojo" id="btnDetener">■ Detener</button>
+  </div>
+
+  <!-- ===== DOS MITADES ===== -->
+  <div class="mitades">
+
+    <!-- MITAD A: MULTICOPIADOR -->
+    <div class="mitad copiar">
+      <div class="mhead">
+        <span class="pt"></span><b>Multicopiador</b>
+        <span class="sp"></span>
+        <span class="mini" id="cuentaU">0 dispositivos</span>
+      </div>
+
+      <div class="cuerpo">
+        <!-- Dispositivos reales -->
+        <div class="tarjeta">
+          <h3>Dispositivos <span class="n" id="nDisp">0</span></h3>
+          <div class="lst" id="unidades"></div>
+        </div>
+
+        <!-- Navegador real -->
+        <div class="nav">
+          <div class="ruta">
+            <button id="btnSubir">←</button>
+            <button id="btnInicio">⌂</button>
+            <input id="rutaActual" placeholder="Escribe una ruta (D:\Videos) y pulsa Enter" spellcheck="false">
+            <button id="btnIr">Ir</button>
+          </div>
+          <div class="duo">
+            <div class="tarjeta">
+              <h3>Carpetas</h3>
+              <div class="lst" id="carpetas"></div>
+            </div>
+            <div class="tarjeta">
+              <h3>Archivos <span class="n" id="nArch">0</span></h3>
+              <div class="lst" id="archivos"></div>
+            </div>
+          </div>
+          <div class="tarjeta">
+            <h3>Origen y destinos</h3>
+            <div style="padding:8px;display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:10.5px;color:var(--tinta-2)">Origen (doble clic en carpeta/archivo para añadir):</div>
+              <div id="origenes" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+              <div style="font-size:10.5px;color:var(--tinta-2);margin-top:4px">Destino (doble clic en un dispositivo):</div>
+              <div id="destinos" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+              <div class="drop" id="zonaDrop" style="border:1.5px dashed var(--teal);border-radius:8px;padding:12px;text-align:center;color:var(--tenue);font-size:11px">Arrastra aquí archivos o carpetas para copiar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divisor"></div>
+
+    <!-- MITAD B: CONVERTIDOR -->
+    <div class="mitad convertir">
+      <div class="mhead">
+        <span class="pt" style="background:var(--azul)"></span><b>Convertidor</b>
+        <span class="sp"></span>
+        <span class="mini" id="ffEstado">ffmpeg: —</span>
+      </div>
+
+      <div class="cuerpo">
+        <!-- Cola de conversión -->
+        <div style="display:flex;flex-direction:column;min-height:0;gap:8px">
+          <div class="tarjeta" style="flex:1">
+            <h3>Archivos a convertir <span class="n" id="nCola" style="background:var(--azul);color:#fff">0</span></h3>
+            <div style="padding:8px">
+              <div class="campo">
+                <label>Origen</label>
+                <input type="text" id="convOrigen" placeholder="Selecciona archivos en el multicopiador o escribe una carpeta">
+                <button class="btn" id="btnAddConv" style="background:var(--panel-2);border:1px solid var(--linea);color:var(--tinta);border-radius:7px;padding:6px 10px;cursor:pointer">+ Añadir</button>
+              </div>
+              <div class="cola" id="cola"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel de ajustes (estilo mio.png: perfil, casillas, CONVERTIR) -->
+        <div style="display:flex;flex-direction:column;gap:8px;min-height:0">
+          <div class="tarjeta">
+            <h3>Perfil</h3>
+            <div style="padding:9px">
+              <div class="campo">
+                <label>Formato</label>
+                <select id="fmt">
+                  <optgroup label="Vídeo">
+                    <option value="mp4">MP4 (H.264 + AAC)</option>
+                    <option value="mkv">MKV (H.264)</option>
+                    <option value="mov">MOV</option>
+                    <option value="avi">AVI</option>
+                    <option value="webm">WEBM (VP9)</option>
+                    <option value="gif">GIF</option>
+                  </optgroup>
+                  <optgroup label="Solo audio">
+                    <option value="mp3">MP3</option>
+                    <option value="m4a">M4A (AAC)</option>
+                    <option value="wav">WAV</option>
+                    <option value="flac">FLAC (sin pérdida)</option>
+                    <option value="ogg">OGG (Vorbis)</option>
+                    <option value="opus">OPUS</option>
+                  </optgroup>
+                  <optgroup label="Imagen">
+                    <option value="jpg">JPG</option>
+                    <option value="png">PNG</option>
+                    <option value="webp">WEBP</option>
+                    <option value="bmp">BMP</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="campo">
+                <label>Modo</label>
+                <select id="modo">
+                  <option value="rapido">Rápido (copia directa, sin recodificar)</option>
+                  <option value="equilibrado" selected>Equilibrado</option>
+                  <option value="alta">Alta calidad (más lento)</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label>Salida</label>
+                <input type="text" id="carpetaSalida" placeholder="Igual que la carpeta de origen" readonly>
+                <button class="btn" id="btnCarpeta" style="background:var(--panel-2);border:1px solid var(--linea);color:var(--tinta);border-radius:7px;padding:6px 10px;cursor:pointer">📁 Elegir</button>
+              </div>
+              <div class="checks">
+                <label><input type="checkbox" id="cMantener" checked> Mantener carpeta</label>
+                <label><input type="checkbox" id="cGpu" checked> Usar GPU si existe</label>
+                <label><input type="checkbox" id="cSubs"> Subtítulos forzados</label>
+                <label><input type="checkbox" id="cPerfil"> Nombre de perfil</label>
+              </div>
+              <div style="font-size:10px;color:var(--tenue);text-align:center" id="gpuInfo">motor: —</div>
+            </div>
+          </div>
+
+          <div class="accion">
+            <div class="reloj" id="reloj">00:00:00</div>
+            <div style="font-size:10.5px;color:var(--tenue);text-align:center" id="convEstado">Trabajo finalizado · 0 de 0</div>
+            <button class="btnconv" id="btnConvertir">Convertir</button>
+            <div class="minis">
+              <button id="btnReiniciar" title="Reiniciar">↻</button>
+              <button id="btnLimpiar" title="Limpiar cola">🗑</button>
+              <button id="btnPlay" title="Continuar">▶</button>
+              <button id="btnPausa" title="Pausar">⏸</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== BARRA INFERIOR ===== -->
+  <div class="bot">
+    <span>Unidades: <b id="sUnidades">0</b></span>
+    <span class="v"></span>
+    <span>Móviles/tablets: <b id="sMoviles">0</b></span>
+    <span class="v"></span>
+    <span>Red: <b id="sRed">0</b></span>
+    <span class="v"></span>
+    <span id="sMsg">Listo</span>
+    <div class="sp"></div>
+    <div class="prog"><i id="barra"></i></div>
+    <span id="progTxt">Sin copia</span>
+    <span class="v"></span>
+    <span id="sHora">--:--:--</span>
+  </div>
+</div>
+
+<script>
+const $=(s)=>document.querySelector(s);
+const api=async(u,o)=>{const r=await fetch(u,o); if(!r.ok) throw new Error(r.status); return r.json();};
+const fmt=(b)=>{ if(b==null||isNaN(b)) return "—"; const u=["B","KB","MB","GB","TB"]; let i=0,n=b; while(n>=1024&&i<u.length-1){n/=1024;i++;} return n.toFixed(n<10?1:0)+" "+u[i]; };
+const ext=(n)=>{const i=n.lastIndexOf(".");return i>0?n.slice(i).toLowerCase():"";};
+const emoji=(n,c)=>{ if(c) return "📁"; const e=ext(n);
+  if([".mp4",".mkv",".avi",".mov",".wmv",".webm",".flv"].includes(e)) return "🎬";
+  if([".mp3",".wav",".flac",".aac",".ogg",".m4a"].includes(e)) return "🎵";
+  if([".jpg",".jpeg",".png",".gif",".bmp",".webp"].includes(e)) return "🖼️";
+  if([".zip",".rar",".7z",".tar",".gz"].includes(e)) return "🗜️";
+  if([".pdf",".doc",".docx",".txt",".xls",".xlsx"].includes(e)) return "📄";
+  if([".exe",".msi",".apk",".bat"].includes(e)) return "⚙️";
+  if([".iso",".img"].includes(e)) return "💿";
+  return "📄"; };
+const iconoU=(k)=>{ k=(k||""); if(k.includes("Network")) return "🌐"; if(k.includes("Usb")) return "💾";
+  if(k==="Removable") return "💾"; if(k==="SystemDisk") return "🖥️"; if(k==="Internal") return "🖴"; return "🔌"; };
+
+let rutaActual="", dispositivos=[], portatiles=[], destinos=new Set(), seleccion=[];
+let cola=[], copiando=false, convInicio=null, convTimer=null;
+
+function msg(t){ $("#sMsg").textContent=t; }
+function hora(){ $("#sHora").textContent=new Date().toLocaleTimeString(); }
+setInterval(hora,1000); hora();
+
+/* ---------- DISPOSITIVOS ---------- */
+async function cargarDispositivos(){
+  try{ const t=await api("/api/todo"); dispositivos=t.unidades||[]; portatiles=t.portatiles||[]; }
+  catch(e){ dispositivos=[]; portatiles=[]; }
+  pintarDispositivos();
+}
+function pintarDispositivos(){
+  const cont=$("#unidades"); cont.innerHTML="";
+  $("#nDisp").textContent=dispositivos.length+portatiles.length;
+  $("#cuentaU").textContent=(dispositivos.length+portatiles.length)+" dispositivos";
+  let red=0,usb=0;
+  dispositivos.forEach(d=>{ const k=d.kind||""; if(k.includes("Network"))red++; else if(k.includes("Usb"))usb++; });
+  $("#sUnidades").textContent=dispositivos.length;
+  $("#sMoviles").textContent=portatiles.length;
+  $("#sRed").textContent=red;
+
+  if(!dispositivos.length&&!portatiles.length)
+    cont.innerHTML='<div class="vacio">Conecta una memoria, disco, torre o teléfono.<br>Aparecerá solo.</div>';
+
+  dispositivos.forEach(d=>{
+    const k=d.kind||""; const pct=d.capacity>0?Math.round((d.usedSpace||0)*100/d.capacity):0;
+    const tipo=k.includes("Network")?"Red":k.includes("Usb")?(d.isSsd===false?"USB externo":"USB/torre"):d.isSystem?"Sistema":"Interno";
+    const f=document.createElement("div"); f.className="u";
+    f.innerHTML=`<span class="ic">${iconoU(k)}</span>
+      <span class="tt">${d.display||d.name}<small>${tipo} · ${d.fileSystem||""} · ${fmt(d.freeSpace)} libres</small></span>
+      <span class="rt">${fmt(d.capacity)}<div class="bmin"><i style="width:${pct}%"></i></div></span>`;
+    f.onclick=()=>navegar(d.root);
+    f.ondblclick=()=>toggleDestino(d.root,d.display||d.name);
+    cont.appendChild(f);
+  });
+  portatiles.forEach(p=>{
+    const f=document.createElement("div"); f.className="u";
+    const ic= p.tipo==="Tablet"?"📱":p.tipo==="Cámara"?"📷":"📱";
+    f.innerHTML=`<span class="ic">${ic}</span><span class="tt">${p.nombre}<small>${p.tipo} · MTP (${p.conectado?"conectado":"desconectado"})</small></span><span class="rt">—</span>`;
+    cont.appendChild(f);
+  });
+  pintarDestinos();
+}
+function toggleDestino(r,n){ if(destinos.has(r)) destinos.delete(r); else destinos.add(r); pintarDestinos(); }
+function pintarDestinos(){
+  const c=$("#destinos"); c.innerHTML="";
+  if(!destinos.size){ c.innerHTML='<span style="font-size:10.5px;color:var(--tenue)">ninguno</span>'; return; }
+  [...destinos].forEach(r=>{
+    const ch=document.createElement("span"); ch.className="chip";
+    ch.style.cssText="background:var(--teal-osc);color:var(--teal-claro);border-radius:20px;padding:3px 9px;font-size:10.5px;font-weight:600;display:inline-flex;gap:6px;align-items:center";
+    ch.innerHTML=`${r} <b style="cursor:pointer;color:#ff8b83">✕</b>`;
+    ch.querySelector("b").onclick=()=>{ destinos.delete(r); pintarDestinos(); };
+    c.appendChild(ch);
+  });
+}
+
+/* ---------- NAVEGACIÓN REAL ---------- */
+async function navegar(ruta){
+  try{
+    const d=await api("/api/explorar?ruta="+encodeURIComponent(ruta||""));
+    rutaActual=d.ruta||""; $("#rutaActual").value=rutaActual||"Equipo";
+    const cs=$("#carpetas"), as=$("#archivos"); cs.innerHTML=""; as.innerHTML="";
+    if(!rutaActual){
+      d.carpetas.forEach(u=>{
+        const f=document.createElement("div"); f.className="f";
+        f.innerHTML=`<span class="ic">🖴</span><span class="nm">${u.nombre}</span><span class="sz">${fmt(u.total)}</span>`;
+        f.onclick=()=>navegar(u.ruta); cs.appendChild(f);
+      });
+      as.innerHTML='<div class="vacio">Selecciona una unidad.</div>'; $("#nArch").textContent="0"; return;
+    }
+    if(!d.carpetas.length) cs.innerHTML='<div class="vacio">Sin subcarpetas.</div>';
+    d.carpetas.forEach(c=>{
+      const f=document.createElement("div"); f.className="f";
+      f.innerHTML=`<span class="ic">📁</span><span class="nm">${c.nombre}</span>`;
+      f.onclick=()=>navegar(c.ruta); f.ondblclick=()=>addOrigen(c.ruta,c.nombre,true);
+      f.draggable=true; f.ondragstart=e=>e.dataTransfer.setData("text/plain",c.ruta);
+      cs.appendChild(f);
+    });
+    $("#nArch").textContent=d.archivos.length;
+    if(!d.archivos.length) as.innerHTML='<div class="vacio">Sin archivos.</div>';
+    d.archivos.forEach(a=>{
+      const f=document.createElement("div"); f.className="f";
+      f.innerHTML=`<span class="ic">${emoji(a.nombre,false)}</span><span class="nm">${a.nombre}</span><span class="sz">${fmt(a.tamano)}</span>`;
+      f.onclick=()=>addOrigen(a.ruta,a.nombre,false);
+      f.draggable=true; f.ondragstart=e=>e.dataTransfer.setData("text/plain",a.ruta);
+      as.appendChild(f);
+    });
+  }catch(e){ msg("No se pudo abrir: "+ruta); }
+}
+function addOrigen(r,n,c){
+  if(!seleccion.includes(r)) seleccion.push(r);
+  const ch=document.createElement("span");
+  ch.style.cssText="background:#2f5f5b;color:var(--teal-claro);border-radius:20px;padding:3px 9px;font-size:10.5px;font-weight:600;display:inline-flex;gap:6px;align-items:center";
+  ch.innerHTML=`${emoji(n,c)} ${r.split("\\").pop()} <b style="cursor:pointer;color:#ff8b83">✕</b>`;
+  ch.querySelector("b").onclick=()=>{ seleccion=seleccion.filter(x=>x!==r); ch.remove(); };
+  $("#origenes").appendChild(ch);
+}
+
+/* ---------- COPIAR ---------- */
+async function copiar(){
+  if(copiando) return;
+  const origenes=seleccion.length?seleccion:(rutaActual?[rutaActual]:[]);
+  if(!origenes.length){ msg("Selecciona un origen (doble clic)."); return; }
+  if(!destinos.size){ msg("Añade un destino (doble clic en un dispositivo)."); return; }
+  const cuerpo={origenes,destinos:[...destinos].map(r=>({raiz:r,etiqueta:r})),
+    opciones:{verify:true,copyTimestamps:true,copyAttributes:true,structure:"Plana",conflict:"SaltarSiIgual"}};
+  try{
+    copiando=true; $("#barra").style.width="0%"; $("#progTxt").textContent="Iniciando…";
+    const r=await api("/api/copiar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cuerpo)});
+    if(!r.ok){ msg("No se pudo iniciar: "+(r.error||"")); copiando=false; return; }
+    msg("Copiando "+origenes.length+" → "+destinos.size+" destino(s)…");
+  }catch(e){ msg("Error: "+e.message); copiando=false; }
+}
+
+/* ---------- CONVERTIR (ffmpeg real) ---------- */
+function pintarCola(){
+  const c=$("#cola"); c.innerHTML=""; $("#nCola").textContent=cola.length;
+  if(!cola.length){ c.innerHTML='<div class="vacio">Añade archivos de vídeo/audio a convertir.</div>'; return; }
+  cola.forEach(x=>{
+    const q=document.createElement("div"); q.className="q";
+    const st=x.estado||"wait";
+    const et={wait:"En cola",run:"Convirtiendo",ok:"Listo",err:"Error"}[st];
+    q.innerHTML=`<span class="ic">${emoji(x.nombre,false)}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.nombre}</span>
+      <span class="st ${st}">${et}</span>`;
+    c.appendChild(q);
+  });
+}
+let carpetaSalida="";
+async function elegirCarpeta(){
+  try{
+    const r=await api("/api/elegir-carpeta",{method:"POST"});
+    if(r.carpeta){ carpetaSalida=r.carpeta; $("#carpetaSalida").value=carpetaSalida; msg("Salida: "+carpetaSalida); }
+    else msg("No se eligió carpeta (se usará la del origen).");
+  }catch(e){ msg("Error al elegir carpeta: "+e.message); }
+}
+async function convertir(){
+  if(!cola.length){ msg("La cola de conversión está vacía."); return; }
+  const formato=$("#fmt").value, modo=$("#modo").value;
+  const usarGpu=$("#cGpu").checked;
+  const archivos=cola.map(x=>x.ruta);
+  convInicio=Date.now(); clearInterval(convTimer);
+  convTimer=setInterval(()=>{ const s=Math.floor((Date.now()-convInicio)/1000);
+    $("#reloj").textContent=new Date(s*1000).toISOString().substr(11,8); },500);
+  $("#convEstado").textContent="Convirtiendo…";
+  cola.forEach(x=>x.estado="run"); pintarCola();
+  try{
+    const r=await api("/api/convertir",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({archivos,formato,modo,usarGpu,carpetaSalida:carpetaSalida||null})});
+    cola.forEach((x,i)=>x.estado=(i<r.hechos)?"ok":"err"); pintarCola();
+    const det=(r.errores&&r.errores[0])?(" · "+r.errores[0]):"";
+    $("#convEstado").textContent=r.ok?`Listo · ${r.hechos} de ${archivos.length} (${r.motor||"CPU"})`
+      :(r.error||`Fallidos: ${r.fallidos} de ${archivos.length}${det}`);
+    if(r.salidas&&r.salidas.length) msg("Guardado en: "+(r.salidas[0].replace(/[^\\/]+$/,"")));
+  }catch(e){ cola.forEach(x=>x.estado="err"); pintarCola(); $("#convEstado").textContent="Error: "+e.message; }
+  clearInterval(convTimer);
+}
+
+/* ---------- WEBSOCKET ---------- */
+function conectar(){
+  const url=(location.protocol==="https:"?"wss://":"ws://")+location.host+"/api/ws";
+  const ws=new WebSocket(url);
+  ws.onmessage=(ev)=>{
+    let m; try{ m=JSON.parse(ev.data); }catch{return;}
+    if(m.tipo==="dispositivos"){
+      dispositivos=m.datos.unidades||[]; portatiles=m.datos.portatiles||[];
+      pintarDispositivos();
+      msg("Hardware: "+dispositivos.length+" unidad(es), "+portatiles.length+" móvil(es)");
+    }
+    if(m.tipo==="progreso"){ const p=m.datos;
+      $("#barra").style.width=(p.porcentaje||0)+"%";
+      $("#progTxt").textContent=`${p.ficherosHechos}/${p.ficherosTotales} · ${fmt(p.bytesHechos)} de ${fmt(p.bytesTotales)}`;
+    }
+    if(m.tipo==="fin"){ copiando=false; $("#progTxt").textContent=`${m.datos.ficheros||0} copiados`;
+      msg("Copia terminada."); }
+    if(m.tipo==="aviso"||m.tipo==="error"){ msg(m.datos.mensaje||""); }
+  };
+  ws.onclose=()=>setTimeout(conectar,2500);
+}
+
+/* ---------- DROP ---------- */
+const zd=$("#zonaDrop");
+["dragenter","dragover"].forEach(e=>zd.addEventListener(e,ev=>{ev.preventDefault();}));
+zd.addEventListener("drop",ev=>{ ev.preventDefault();
+  const r=ev.dataTransfer.getData("text/plain");
+  if(r){ addOrigen(r,r.split("\\").pop(),true); msg("Añadido: "+r); } });
+
+/* ---------- BOTONES ---------- */
+$("#btnEscanear").onclick=cargarDispositivos;
+$("#btnCopiar").onclick=copiar;
+$("#btnDetener").onclick=()=>{ api("/api/copiar/cancelar",{method:"POST"}).then(()=>msg("Detenido.")).catch(()=>{}); };
+$("#btnSubir").onclick=()=>{ if(rutaActual){ const p=rutaActual.replace(/[^\\]+\\?$/,""); navegar(p||""); } };
+$("#btnInicio").onclick=()=>navegar("");
+$("#btnIr").onclick=()=>navegar($("#rutaActual").value.trim());
+$("#rutaActual").addEventListener("keydown",e=>{ if(e.key==="Enter") navegar(e.target.value.trim()); });
+$("#btnAddConv").onclick=()=>{
+  const r=(seleccion[0]||rutaActual||$("#convOrigen").value||"").trim();
+  if(!r){ msg("Selecciona un archivo en el multicopiador."); return; }
+  cola.push({ruta:r,nombre:r.split("\\").pop()||r,estado:"wait"}); pintarCola(); msg("Añadido a conversión."); };
+$("#btnConvertir").onclick=convertir;
+$("#btnCarpeta").onclick=elegirCarpeta;
+$("#btnLimpiar").onclick=()=>{ cola=[]; pintarCola(); };
+$("#btnReiniciar").onclick=()=>{ $("#reloj").textContent="00:00:00"; cola.forEach(x=>x.estado="wait"); pintarCola(); };
+
+cargarDispositivos(); navegar(""); pintarCola(); conectar();
+
+// Comprobar ffmpeg + GPU reales
+api("/api/ffmpeg").then(f=>{
+  $("#ffEstado").textContent = f.disponible ? "ffmpeg: listo" : "ffmpeg: no encontrado";
+  if($("#gpuInfo")) $("#gpuInfo").textContent = "motor: " + (f.gpu||"CPU");
+}).catch(()=>{ $("#ffEstado").textContent="ffmpeg: ?"; });
+</script>
+</body>
+</html>

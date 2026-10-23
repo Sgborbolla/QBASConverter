@@ -1,0 +1,147 @@
+/* ==========================================================================
+   QBAS Suite - base de la interfaz
+   Depende de tokens.css. Sin framework: la interfaz es HTML y CSS planos
+   para que funcione sin internet y se pueda auditar linea por linea.
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--qbas-fondo);
+  color: var(--qbas-texto);
+  font-family: var(--qbas-fuente);
+  font-size: var(--qbas-t-body-md);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------------------------------------------ tipografía */
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
+h1 { font-size: var(--qbas-t-headline-lg); }
+h2 { font-size: var(--qbas-t-headline-md); }
+h3 { font-size: var(--qbas-t-headline-sm); }
+
+.label {
+  font-size: var(--qbas-t-label-sm);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--qbas-texto-3);
+}
+
+.mono { font-family: var(--qbas-mono); font-variant-numeric: tabular-nums; }
+.silencio { color: var(--qbas-texto-3); }
+.error { color: var(--qbas-error); }
+.ok { color: var(--qbas-ok); }
+
+/* ------------------------------------------------------------------ estructura */
+.qbas-cabecera {
+  position: fixed; inset: 0 0 auto 0; z-index: 50;
+  height: var(--qbas-header-alto);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--qbas-space-xl);
+  background: var(--qbas-superficie);
+  box-shadow: var(--qbas-sombra-2);
+  border-bottom: 2px solid var(--qbas-rojo);
+}
+
+.qbas-marca { display: flex; align-items: center; gap: var(--qbas-space-md); }
+.qbas-marca img { height: 2rem; width: auto; }
+.qbas-marca strong { color: var(--qbas-azul); font-size: var(--qbas-t-headline-sm); }
+.qbas-marca span { display: block; font-size: var(--qbas-t-label-sm); color: var(--qbas-texto-3); }
+
+.qbas-lateral {
+  position: fixed; top: var(--qbas-header-alto); bottom: 0; left: 0; z-index: 40;
+  width: var(--qbas-sidebar-ancho);
+  background: var(--qbas-superficie);
+  border-right: 1px solid var(--qbas-borde-suave);
+  padding: var(--qbas-space-lg) var(--qbas-space-md);
+  display: flex; flex-direction: column; gap: var(--qbas-space-md);
+  overflow-y: auto;
+}
+
+.qbas-lateral nav { display: flex; flex-direction: column; gap: var(--qbas-space-xs); }
+.qbas-lateral a {
+  display: flex; align-items: center; gap: var(--qbas-space-sm);
+  padding: var(--qbas-space-sm) var(--qbas-space-md);
+  border-radius: var(--qbas-r-md);
+  color: var(--qbas-texto-2); text-decoration: none;
+}
+.qbas-lateral a:hover { background: var(--qbas-superficie-4); color: var(--qbas-texto); }
+.qbas-lateral a.activo {
+  background: var(--qbas-azul); color: #fff; font-weight: 600;
+  box-shadow: var(--qbas-sombra-2);
+}
+
+.qbas-cuerpo { margin-left: var(--qbas-sidebar-ancho); padding-top: var(--qbas-header-alto); min-height: 100vh; }
+.qbas-pagina { padding: var(--qbas-space-xl); display: flex; flex-direction: column; gap: var(--qbas-space-xl); }
+
+/* ------------------------------------------------------------------ tarjetas */
+.tarjeta {
+  background: var(--qbas-superficie);
+  border: 1px solid var(--qbas-borde-suave);
+  border-radius: var(--qbas-r-lg);
+  box-shadow: var(--qbas-sombra-1);
+  padding: var(--qbas-space-lg);
+}
+
+.rejilla { display: grid; gap: var(--qbas-space-lg); }
+.rejilla.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rejilla.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rejilla.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .rejilla.c3, .rejilla.c4 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 700px)  { .rejilla.c2, .rejilla.c3, .rejilla.c4 { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------------------------------ botones */
+.boton {
+  display: inline-flex; align-items: center; gap: var(--qbas-space-sm);
+  padding: var(--qbas-space-sm) var(--qbas-space-lg);
+  border: 1px solid transparent; border-radius: var(--qbas-r-md);
+  background: var(--qbas-azul); color: #fff;
+  font: inherit; font-weight: 500; cursor: pointer;
+}
+.boton:hover { background: var(--qbas-azul-claro); }
+.boton.secundario { background: var(--qbas-superficie-4); color: var(--qbas-texto); }
+.boton.secundario:hover { background: var(--qbas-superficie-5); }
+.boton.peligro { background: var(--qbas-rojo); }
+.boton.peligro:hover { background: var(--qbas-rojo-claro); }
+.boton:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ------------------------------------------------------------------ chips y estados */
+.chip {
+  display: inline-flex; align-items: center; gap: var(--qbas-space-xs);
+  padding: 2px var(--qbas-space-sm); border-radius: var(--qbas-r-sm);
+  background: var(--qbas-superficie-4); color: var(--qbas-azul);
+  font-size: var(--qbas-t-label-sm); font-weight: 600;
+}
+.chip.rojo { background: var(--qbas-rojo-tenue); color: var(--qbas-rojo-oscuro); }
+.chip.verde { background: var(--qbas-ok-tenue); color: var(--qbas-ok); }
+
+/* ------------------------------------------------------------------ barras */
+.barra { height: 6px; border-radius: 999px; background: var(--qbas-superficie-4); overflow: hidden; }
+.barra > i { display: block; height: 100%; background: var(--qbas-azul); transition: width .2s ease; }
+.barra > i.roja { background: var(--qbas-rojo); }
+
+/* ------------------------------------------------------------------ tablas */
+table { width: 100%; border-collapse: collapse; font-size: var(--qbas-t-body-sm); }
+th, td { text-align: left; padding: var(--qbas-space-sm) var(--qbas-space-md); border-bottom: 1px solid var(--qbas-borde-suave); }
+th { color: var(--qbas-texto-3); font-weight: 600; font-size: var(--qbas-t-label-sm); text-transform: uppercase; }
+td.mono, th.mono { font-family: var(--qbas-mono); }
+
+/* ------------------------------------------------------------------ material symbols */
+.material-symbols-outlined {
+  font-family: var(--qbas-icono);
+  font-weight: normal; font-style: normal;
+  line-height: 1; letter-spacing: normal; text-transform: none;
+  display: inline-block; white-space: nowrap; word-wrap: normal;
+  direction: ltr; -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------------------------------------------ estados vacios */
+.vacio {
+  display: flex; flex-direction: column; align-items: center; gap: var(--qbas-space-sm);
+  padding: var(--qbas-space-xl); color: var(--qbas-texto-3); text-align: center;
+}
+.vacio .material-symbols-outlined { font-size: 2.5rem; color: var(--qbas-superficie-5); }

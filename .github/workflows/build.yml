@@ -1,0 +1,72 @@
+name: Build and Release QBASCONVERTER GUI
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+            exe: QBASCONVERTER.exe
+          - os: ubuntu-latest
+            name: Linux
+            exe: QBASCONVERTER
+          - os: macos-latest
+            name: macOS
+            exe: QBASCONVERTER
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build
+        run: |
+          pip install pyinstaller
+          pyinstaller --onefile --windowed --name QBASCONVERTER qbasconverter.py
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p pkg/${{ matrix.name }}
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp dist/QBASCONVERTER.exe pkg/${{ matrix.name }}/
+          else
+            cp dist/QBASCONVERTER pkg/${{ matrix.name }}/ && chmod +x pkg/${{ matrix.name }}/QBASCONVERTER
+          fi
+          echo "QBASCONVERTER v3.1.8-pro (GUI)" > pkg/${{ matrix.name }}/LEER.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QBASCONVERTER-${{ matrix.name }}
+          path: pkg/${{ matrix.name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: a
+      - name: ZIP
+        run: |
+          mkdir r
+          for d in a/*; do n=$(basename $d | sed 's/QBASCONVERTER-//'); mkdir -p r/$n; cp -r $d/* r/$n/; done
+          cd r && zip -r ../QBASCONVERTER-GUI-v3.1.8-pro.zip Windows Linux macOS && cd ..
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v3.1.8-pro
+          name: QBASCONVERTER v3.1.8-pro (GUI)
+          files: QBASCONVERTER-GUI-v3.1.8-pro.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,39 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+artifacts/
+TestResults/
+
+# Python (el conversor)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+*.spec
+
+# Empaquetado y binarios (NO se suben: el .exe se compila)
+*.zip
+*.exe
+*.msi
+*.msix
+publish/
+*.dll
+*.pdb
+*.deps.json
+*.runtimeconfig.json
+*.json.old
+
+# Ajustes y trabajos del programa (locales de cada equipo)
+QBASFreemanCopy-Converter.ajustes.json
+QBASFreemanCopy-Converter.trabajo.qbt
+QBASFreemanCopy-Converter.conversion.qbt
+QBASFreemanCopy-Converter.perfiles.json
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,37 @@
+<Project>
+
+  <!--
+    Propiedades comunes de QBAS Suite.
+
+    La version vive aqui y en ningun otro sitio: cambiarla es cambiar una
+    linea (antes estaba escrita a mano en cinco ficheros distintos).
+  -->
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+
+    <Product>QBAS Suite</Product>
+    <Company>QBasWinG</Company>
+    <Authors>QBasWinG - Dr. Sergio Grabiel Borbolla Verdecia</Authors>
+    <Copyright>Copyright (c) 2026 QBasWinG</Copyright>
+    <Description>QBAS Suite: Delta (copia multi-destino), QBASCONVERTER y estadisticas. Todo offline.</Description>
+
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NeutralLanguage>es</NeutralLanguage>
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <!-- El SDK avisa si el TFM esta fuera de soporte. Aqui el TFM es net10.0,
+         que esta en soporte, pero el aviso se deja silenciado para que no
+         ensucie la salida del compilador. -->
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <NoWarn>$(NoWarn);NU1903</NoWarn>
+
+    <!-- En Windows se compila de forma cruzada sin problema (lo usa el CI). -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+</Project>

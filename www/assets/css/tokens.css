@@ -1,0 +1,88 @@
+/* ==========================================================================
+   QBAS Suite - tokens del sistema de diseño
+   --------------------------------------------------------------------------
+   Fuente: los diseños de Stitch de QBAS Suite (Precision Nautical Utility).
+   Este archivo es la única fuente de verdad de los colores, las tipografías
+   y las medidas: lo usan la interfaz web (www/) y, por conversión, la
+   documentación. Si cambia un color, cambia aqui y en ningun otro sitio.
+
+   Paleta: azul bandera (#002590) y rojo carmesí (#cc1823), con la bandera
+   de Cuba como motivo. Tipografías: Geist y JetBrains Mono.
+   ========================================================================== */
+
+:root {
+  /* --- azul bandera --- */
+  --qbas-azul:        #002590;
+  --qbas-azul-claro:  #1a4fb0;
+  --qbas-azul-oscuro: #001c67;
+  --qbas-azul-tenue:  #d3e4ff;
+  --qbas-azul-lavado: #e5eeff;
+  --qbas-azul-palido: #eff4ff;
+
+  /* --- rojo carmesí --- */
+  --qbas-rojo:        #cc1823;
+  --qbas-rojo-claro:  #e22513;
+  --qbas-rojo-oscuro: #920500;
+  --qbas-rojo-tenue:  #ffdad4;
+  --qbas-rojo-lavado: #ffe9e7;
+
+  /* --- neutros (azul frío, no gris puro) --- */
+  --qbas-fondo:       #f8f9ff;
+  --qbas-superficie:  #ffffff;
+  --qbas-superficie-2:#eff4ff;
+  --qbas-superficie-3:#e5eeff;
+  --qbas-superficie-4:#dce9ff;
+  --qbas-superficie-5:#d3e4fe;
+  --qbas-borde:       #c3c6d0;
+  --qbas-borde-suave: #e4e7ee;
+  --qbas-texto:       #0b1c30;
+  --qbas-texto-2:     #42474f;
+  --qbas-texto-3:     #737780;
+  --qbas-inverso:     #f8f9ff;
+
+  /* --- estados --- */
+  --qbas-ok:          #059669;
+  --qbas-ok-tenue:    #d1fae5;
+  --qbas-aviso:       #d97706;
+  --qbas-aviso-tenue: #fef3c7;
+  --qbas-error:       #dc2626;
+  --qbas-error-tenue: #fee2e2;
+  --qbas-info:        #0284c7;
+  --qbas-info-tenue:  #e0f2fe;
+
+  /* --- tipografías --- */
+  --qbas-fuente:      "Geist", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --qbas-mono:        "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+  --qbas-icono:       "Material Symbols Outlined";
+
+  /* --- tamaños de texto (los mismos del diseño) --- */
+  --qbas-t-headline-lg: 1.5rem;
+  --qbas-t-headline-md: 1.125rem;
+  --qbas-t-headline-sm: 0.875rem;
+  --qbas-t-body-md:     0.8125rem;
+  --qbas-t-body-sm:     0.75rem;
+  --qbas-t-label-sm:    0.6875rem;
+
+  /* --- espaciado --- */
+  --qbas-space-xs:  0.125rem;
+  --qbas-space-sm:  0.25rem;
+  --qbas-space-md:  0.5rem;
+  --qbas-space-lg:  0.75rem;
+  --qbas-space-xl:  1rem;
+  --qbas-gutter:    0.5rem;
+
+  /* --- radios --- */
+  --qbas-r-sm: 0.125rem;
+  --qbas-r-md: 0.25rem;
+  --qbas-r-lg: 0.5rem;
+  --qbas-r-xl: 0.75rem;
+
+  /* --- sombras --- */
+  --qbas-sombra-1: 0 1px 2px rgba(11, 28, 48, .06);
+  --qbas-sombra-2: 0 1px 8px rgba(11, 28, 48, .08);
+  --qbas-sombra-3: 0 8px 24px rgba(11, 28, 48, .12);
+
+  /* --- medidas de la ventana --- */
+  --qbas-header-alto: 2.5rem;
+  --qbas-sidebar-ancho: 16rem;
+}

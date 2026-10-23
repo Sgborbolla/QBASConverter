@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>QBASSuite</RootNamespace>
+    <AssemblyName>QBASSuite.Core</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    El motor de copia no necesita NuGet. La deteccion en vivo de hardware
+    (DeviceWatcher, PortableDeviceScanner) usa System.Management, que Windows
+    ya trae de serie.
+  -->
+  <ItemGroup>
+    <PackageReference Include="System.Management" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>
