@@ -9,8 +9,8 @@
     <AssemblyName>QBASFreemanCopy-Converter</AssemblyName>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- Icono del .exe: combinacion de copiador + convertidor. -->
-    <ApplicationIcon>..\..\QBASFreemanCopy-Converter (lanzador).ico</ApplicationIcon>
+    <!-- Icono del .exe: la imagen del multicopiador (la que dio el autor). -->
+    <ApplicationIcon>..\..\QBASFreemanCopy-Converter.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +24,9 @@
     <Content Include="..\..\QBASFreemanCopy-Converter.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\QBASFreemanCopy-Converter (convertidor).ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\QBASFreemanCopy-Converter (lanzador).ico" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Las dos imagenes de la marca: convertidor y multicopiador. -->
+    <Content Include="..\..\icono-copiador.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\icono-convertidor.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

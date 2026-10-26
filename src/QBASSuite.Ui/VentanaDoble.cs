@@ -229,10 +229,7 @@ public sealed partial class VentanaDoble : Form
         der.Controls.Add(new Label { Text = "Tema:", AutoSize = true, ForeColor = _tema.Tinta2, Padding = new Padding(0, 5, 6, 0) });
         p.Controls.Add(der);
 
-        _logo = new PanelLogo { Dock = DockStyle.Left, Width = 52 };
-        _logo.EtiquetaForma = () => _tema.Forma;
-        _logo.EtiquetaTinta = () => _tema.Acento;
-        _logo.EtiquetaSombra = () => _tema.AcentoSuave;
+        _logo = new PanelLogo(_tema) { Dock = DockStyle.Left, Width = 52 };
         p.Controls.Add(_logo);
 
         return p;
@@ -399,15 +396,14 @@ public sealed partial class VentanaDoble : Form
     private static Color Mezclar(Color a, Color b, float t) => Color.FromArgb(
         (int)(a.R + (b.R - a.R) * t), (int)(a.G + (b.G - a.G) * t), (int)(a.B + (b.B - a.B) * t));
 
-    /// <summary>Cabecera con la forma vectorial del tema pintada de verdad.</summary>
+    /// <summary>Cabecera con la imagen real del programa (la que dio el autor).</summary>
     private sealed class PanelLogo : Panel
     {
-        public Func<FormaTema>? EtiquetaForma;
-        public Func<Color>? EtiquetaTinta;
-        public Func<Color>? EtiquetaSombra;
+        private readonly Tema _tema;
 
-        public PanelLogo()
+        public PanelLogo(Tema tema)
         {
+            _tema = tema;
             DoubleBuffered = true;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
         }
@@ -416,11 +412,9 @@ public sealed partial class VentanaDoble : Form
         {
             base.OnPaint(e);
             var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            var lado = Math.Min(40, Height - 10);
-            var caja = new Rectangle(6, 5, lado, lado);
-            Formas.Dibujar(g, EtiquetaForma?.Invoke() ?? FormaTema.HojaNinja, caja,
-                EtiquetaTinta?.Invoke() ?? Color.Orange, EtiquetaSombra?.Invoke() ?? Color.DarkOrange);
+            var lado = Math.Min(42, Height - 8);
+            var caja = new Rectangle((Width - lado) / 2, (Height - lado) / 2, lado, lado);
+            Marca.Dibujar(g, Marca.Imagen(Marca.Copiador), caja, Math.Max(6, lado / 4), true, _tema);
         }
     }
 

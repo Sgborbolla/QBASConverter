@@ -22,10 +22,10 @@ internal static class Program
         Icon? icono = null;
         try
         {
-            // Icono del lanzador: combinacion de copiador + convertidor.
-            var iconPath = Path.Combine(AppContext.BaseDirectory, "QBASFreemanCopy-Converter (lanzador).ico");
+            // Icono del programa: la imagen del multicopiador.
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "QBASFreemanCopy-Converter.ico");
             if (!File.Exists(iconPath))
-                iconPath = Path.Combine(AppContext.BaseDirectory, "QBASFreemanCopy-Converter.ico");
+                iconPath = Path.Combine(AppContext.BaseDirectory, "QBASFreemanCopy-Converter (lanzador).ico");
             if (File.Exists(iconPath))
                 icono = new Icon(iconPath);
         }

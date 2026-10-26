@@ -282,9 +282,6 @@ public sealed partial class VentanaDoble
         BackColor = _tema.Fondo;
         if (_logo != null)
         {
-            _logo.EtiquetaForma = () => _tema.Forma;
-            _logo.EtiquetaTinta = () => _tema.Acento;
-            _logo.EtiquetaSombra = () => _tema.AcentoSuave;
             _logo.Invalidate();
         }
         if (_fondoDiscos != null)

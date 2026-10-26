@@ -1,4 +1,4 @@
-﻿using System.Drawing.Drawing2D;
+using System.Drawing.Drawing2D;
 using QBASSuite.Devices;
 using QBASSuite.Engine;
 using QBASSuite.Util;
@@ -46,13 +46,29 @@ public sealed partial class VentanaDoble
         raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // COPIAR + opciones
         raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));   // precio por GB
 
-        var cab = new Panel { Dock = DockStyle.Fill, BackColor = _tema.PanelDiscos };
+        var cab = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, BackColor = _tema.PanelDiscos,
+            ColumnCount = 3, RowCount = 1, Margin = new Padding(0), Padding = new Padding(0)
+        };
+        cab.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 26));
+        cab.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        cab.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 228));
+        cab.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        // La imagen del multicopiador, pequena, delante del titulo.
+        cab.Controls.Add(new PanelFoto(_tema, Marca.Copiador)
+        {
+            Dock = DockStyle.Fill, Margin = new Padding(0, 1, 0, 1)
+        }, 0, 0);
+
         cab.Controls.Add(new Label
         {
             Text = "DISCOS  ·  copia a todos a la vez, cada uno a su velocidad real",
-            Dock = DockStyle.Left, ForeColor = _tema.Acento,
-            Font = new Font("Segoe UI", 9f, FontStyle.Bold), AutoSize = true, Padding = new Padding(2, 7, 0, 0)
-        });
+            Dock = DockStyle.Fill, ForeColor = _tema.Acento, AutoEllipsis = true, AutoSize = false,
+            Font = new Font("Segoe UI", 9f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(2, 0, 0, 0), Margin = new Padding(0)
+        }, 1, 0);
 
         // --- barra de iconos de arriba: todos los dibujos son nuestros ---
         var accionesCab = new FlowLayoutPanel
@@ -77,7 +93,7 @@ public sealed partial class VentanaDoble
                 if (t.Estado == TrabajoEstado.Copiando) _trabajos.AlternarPausa(t);
         }));
         accionesCab.Controls.Add(IconoBarra(Icono.AnadirCarpeta, "Añadir origen", () => AnadirOrigenDialogo()));
-        cab.Controls.Add(accionesCab);
+        cab.Controls.Add(accionesCab, 2, 0);
         raiz.Controls.Add(cab, 0, 0);
 
         _panelDiscos = new FlowLayoutPanel
@@ -93,7 +109,9 @@ public sealed partial class VentanaDoble
             BackColor = _tema.PanelDiscos,
             EtiquetaForma = () => _tema.Forma,
             EtiquetaGlifo = () => _tema.Glifo,
-            EtiquetaColor = () => _tema.Oscuro ? Color.White : _tema.Acento
+            EtiquetaColor = () => _tema.Oscuro ? Color.White : _tema.Acento,
+            // La imagen del multicopiador como marca de agua, muy tenue.
+            IconoFondo = Marca.Imagen(Marca.Copiador)
         };
         _fondoDiscos = fondo;
         fondo.Controls.Add(_panelDiscos);
@@ -253,7 +271,7 @@ public sealed partial class VentanaDoble
 
     private bool _escuchaAncho;
 
-    /// <summary>Una fila-tarjeta de disco: datos + barra + botones (â˜… prioridad, â¸ pausa/sigue, âœ• cancelar).</summary>
+    /// <summary>Una fila-tarjeta de disco: datos + barra + botones (prioridad, pausa/sigue, cancelar).</summary>
     private Control TarjetaDisco(DeviceInfo u)
     {
         var fila = new PanelRedondo(_tema)

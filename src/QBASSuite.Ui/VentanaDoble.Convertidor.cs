@@ -61,16 +61,33 @@ public sealed partial class VentanaDoble
         t.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
 
         // 1) cabecera "PERFIL ..." con el selector de perfiles a la derecha
-        var cab = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel2 };
+        // Tabla de 3 columnas: imagen | titulo | selector. Asi la imagen siempre
+        // queda pegada al borde izquierdo, sin depender del orden de acoplado.
+        var cab = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, BackColor = _tema.Panel2,
+            ColumnCount = 3, RowCount = 1, Margin = new Padding(0), Padding = new Padding(0)
+        };
+        cab.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 26));
+        cab.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+        cab.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        cab.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        cab.Controls.Add(new PanelFoto(_tema, Marca.Convertidor)
+        {
+            Dock = DockStyle.Fill, Margin = new Padding(0, 1, 0, 1)
+        }, 0, 0);
+
         cab.Controls.Add(new Label
         {
-            Text = "PERFIL", Dock = DockStyle.Left, Width = 70,
+            Text = "PERFIL", Dock = DockStyle.Fill,
             Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = _tema.Tinta2,
-            TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(6, 0, 0, 0)
-        });
-        _cmbPerfil = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+            TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(6, 0, 0, 0), Margin = new Padding(0)
+        }, 1, 0);
+
+        _cmbPerfil = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 2, 0, 2) };
         CargarPerfiles();
-        cab.Controls.Add(_cmbPerfil);
+        cab.Controls.Add(_cmbPerfil, 2, 0);
         t.Controls.Add(cab, 0, 0);
 
         // 2) formato, calidad y conversiones a la vez
