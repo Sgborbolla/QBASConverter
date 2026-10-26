@@ -37,6 +37,10 @@ public sealed partial class VentanaDoble
             {
                 var txt = File.ReadAllText(FicheroAjustes);
                 var doc = JsonDocument.Parse(txt);
+                // La ventana de Opciones guarda el tema como "temaVisual"; el
+                // desplegable de la cabecera lo guarda como "tema". Vale cualquiera.
+                if (doc.RootElement.TryGetProperty("temaVisual", out var tv) && tv.ValueKind == JsonValueKind.String)
+                    return tv.GetString() ?? Tema.PorDefecto.Nombre;
                 if (doc.RootElement.TryGetProperty("tema", out var t) && t.ValueKind == JsonValueKind.String)
                     return t.GetString() ?? Tema.PorDefecto.Nombre;
             }
@@ -62,6 +66,7 @@ public sealed partial class VentanaDoble
             Poner("programa", "QBASFreemanCopy-Converter");
             Poner("version", 2);
             Poner("tema", _tema.Nombre);
+            Poner("temaVisual", _tema.Nombre);
             Poner("limiteConv", _cmbLimiteConv?.SelectedItem?.ToString() ?? "Automático");
             Poner("formato", _cmbFormato?.SelectedItem?.ToString() ?? "mp4");
             Poner("modoIdx", _cmbModoConv?.SelectedIndex ?? 1);

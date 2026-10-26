@@ -61,8 +61,11 @@ public sealed partial class VentanaDoble : Form
         WindowState = FormWindowState.Normal;
         ClientSize = new Size(960, 620);
         MinimumSize = new Size(800, 500);
-        Font = new Font("Segoe UI", 9f);
+        Font = new Font("Segoe UI", _fuentePt);
         if (icono != null) Icon = icono;
+
+        // Opciones de discos (que se ve y que columnas) antes de construir.
+        LeerOpcionesDiscos();
 
         Construir();
 
@@ -273,8 +276,10 @@ public sealed partial class VentanaDoble : Form
         if (idx >= 0 && _cmbTema != null && _cmbTema.SelectedIndex != idx) _cmbTema.SelectedIndex = idx;
 
         CargarPrecioGuardado();
+        LeerOpcionesDiscos();
         AplicarTema();
-        CargarUnidades();
+        _firmaDiscos = "";
+        CargarUnidades(true);
     }
 
     /// <summary>Recoge de los ajustes el interruptor y el precio por GB.</summary>
@@ -355,6 +360,9 @@ public sealed partial class VentanaDoble : Form
     {
         if (IsDisposed || _lblCuentaDiscos == null) return;
 
+        // Solo se muestran los tipos de disco que el usuario tenga encendidos.
+        unidades = unidades.Where(DiscoVisible).ToList();
+
         _unidades.Clear();
         _unidades.AddRange(unidades);
         _portatiles.Clear();
@@ -372,6 +380,37 @@ public sealed partial class VentanaDoble : Form
     }
 
     private string _firmaDiscos = "";
+
+    // ---- opciones que afectan a la lista de discos (se leen una vez) ----
+    private bool _verInternos = true, _verExternos = true, _verRed = true, _verOpticos = true;
+    private bool _colLetra = true, _colSistema = true, _colLibre = true;
+    private float _fuentePt = 9f;
+    private int _tamIcono = 26;
+    private bool _lineas = true;
+
+    /// <summary>Recoge de los ajustes que discos se miran y que columnas se ven.</summary>
+    private void LeerOpcionesDiscos()
+    {
+        _verInternos = Opciones.LeerBooleano("verDiscosInternos", true);
+        _verExternos = Opciones.LeerBooleano("verDiscosExternos", true);
+        _verRed = Opciones.LeerBooleano("verRed", true);
+        _verOpticos = Opciones.LeerBooleano("verOpticos", true);
+        _colLetra = Opciones.LeerBooleano("mostrarLetra", true);
+        _colSistema = Opciones.LeerBooleano("mostrarSistemaArchivos", true);
+        _colLibre = Opciones.LeerBooleano("mostrarLibre", true);
+        _fuentePt = Math.Clamp(Opciones.LeerEntero("fuentePrincipal", 9), 7, 20);
+        _tamIcono = Math.Clamp(Opciones.LeerEntero("tamIconos", 26), 16, 40);
+        _lineas = Opciones.LeerBooleano("mostrarLineas", true);
+    }
+
+    /// <summary>Dice si un dispositivo entra en la lista segun las opciones.</summary>
+    private bool DiscoVisible(DeviceInfo u) => u.Kind switch
+    {
+        DeviceKind.SystemDisk or DeviceKind.Internal => _verInternos,
+        DeviceKind.NetworkShare => _verRed,
+        DeviceKind.Optical => _verOpticos,
+        _ => _verExternos
+    };
 
     private DeviceInfo? UnidadDe(string raiz) =>
         _unidades.FirstOrDefault(x => string.Equals(x.Root, raiz, StringComparison.OrdinalIgnoreCase));

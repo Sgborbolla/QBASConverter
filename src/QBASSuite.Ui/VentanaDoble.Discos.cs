@@ -64,7 +64,7 @@ public sealed partial class VentanaDoble
 
         cab.Controls.Add(new Label
         {
-            Text = "DISCOS  ·  copia a todos a la vez, cada uno a su velocidad real",
+            Text = "DISCOS  ·  copia a todos a la vez",
             Dock = DockStyle.Fill, ForeColor = _tema.Acento, AutoEllipsis = true, AutoSize = false,
             Font = new Font("Segoe UI", 9f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(2, 0, 0, 0), Margin = new Padding(0)
@@ -123,9 +123,33 @@ public sealed partial class VentanaDoble
         return raiz;
     }
 
-    private Control BarraOrigenDestino()
+    /// <summary>Lee la prioridad guardada y la convierte al indice del desplegable.</summary>
+    private int IndicePrioridadGuardada()
     {
-        var p = new Panel { Dock = DockStyle.Fill, BackColor = _tema.PanelDiscos };
+        var texto = Opciones.LeerTexto("prioridadAuto", "El que menos le queda por copiar");
+        if (texto.StartsWith("El más rápido", StringComparison.OrdinalIgnoreCase)) return 2;
+        if (texto.StartsWith("El más lento", StringComparison.OrdinalIgnoreCase)) return 3;
+        if (texto.StartsWith("Por orden", StringComparison.OrdinalIgnoreCase)) return 0;
+        if (texto.StartsWith("Solo", StringComparison.OrdinalIgnoreCase)) return 4;
+        return 1;
+    }
+
+    /// <summary>Guarda la prioridad elegida en el mismo ajuste de Opciones.</summary>
+    private void GuardarPrioridad()
+    {
+        var texto = _cmbPrioridadAuto.SelectedIndex switch
+        {
+            0 => "Por orden de la lista",
+            2 => "El más rápido",
+            3 => "El más lento",
+            4 => "Solo el que yo marque con ★",
+            _ => "El que menos le queda por copiar"
+        };
+        Opciones.Guardar("prioridadAuto", texto);
+    }
+
+    private Control BarraOrigenDestino()
+    {        var p = new Panel { Dock = DockStyle.Fill, BackColor = _tema.PanelDiscos };
 
         _flOrigen = new FlowLayoutPanel
         {
@@ -177,8 +201,12 @@ public sealed partial class VentanaDoble
             "Prioridad auto: El más lento",
             "Prioridad auto: Solo el marcado con ★"
         });
-        _cmbPrioridadAuto.SelectedIndex = 0;
-        _cmbPrioridadAuto.SelectedIndexChanged += (_, _) => AplicarPrioridadAutomatica();
+        _cmbPrioridadAuto.SelectedIndex = IndicePrioridadGuardada();
+        _cmbPrioridadAuto.SelectedIndexChanged += (_, _) =>
+        {
+            GuardarPrioridad();
+            AplicarPrioridadAutomatica();
+        };
 
         op.Controls.Add(_chkVeloz);
         op.Controls.Add(_chkVerificar);
@@ -396,14 +424,14 @@ public sealed partial class VentanaDoble
         using (var camino = Estilo.Redondo(cajaFila, 10))
         {
             using (var b = new SolidBrush(fondo)) g.FillPath(b, camino);
-            using var pl = new Pen(elegido ? _tema.Acento : _tema.Linea, elegido ? 1.6f : 1f);
+            using var pl = new Pen(elegido ? _tema.Acento : _tema.Linea, elegido && _lineas ? 1.6f : 1f);
             g.DrawPath(pl, camino);
         }
 
         var colorEstado = trabajo == null ? _tema.Tenue : ColorEstado(trabajo.Estado);
 
         // --- icono del disco, como en la captura ---
-        var lateral = 26;
+        var lateral = Math.Clamp(_tamIcono, 16, 40);
         var cajaIcono = new Rectangle(10, (fila.Height - lateral) / 2 - 2, lateral, lateral);
         Iconos.Dibujar(g, Iconos.ParaDispositivo(u), cajaIcono,
             elegido ? _tema.Acento : _tema.Tinta, _tema.AcentoSuave);
@@ -412,11 +440,14 @@ public sealed partial class VentanaDoble
         var limiteDerecho = fila.Width - 124; // deja sitio a los botones de la fila
         if (limiteDerecho < x + 100) limiteDerecho = fila.Width - 10;
 
-        // --- linea 1: nombre + sistema + letra ---
+        // --- linea 1: nombre + sistema + letra (segun las opciones) ---
         var titulo = u.Label is { Length: > 0 } l ? l : (u.Name is { Length: > 0 } n ? n : "Disco local");
+        var linea1 = titulo;
+        if (_colSistema && !string.IsNullOrWhiteSpace(u.FileSystem)) linea1 += "  " + u.FileSystem;
+        if (_colLetra) linea1 += $"  ({u.DriveLetter ?? u.KindLabel})";
         using (var fuente = new Font("Segoe UI", 9.5f, FontStyle.Bold))
         using (var tinta = new SolidBrush(elegido ? _tema.Acento : _tema.Tinta))
-            g.DrawString($"{titulo}  {u.FileSystem}  ({u.DriveLetter ?? u.KindLabel})", fuente, tinta, x, 4);
+            g.DrawString(linea1, fuente, tinta, x, 4);
 
         // --- linea 2: capacidad · velocidad · tiempo restante ---
         var uso = $"{Human.Size(u.UsedSpace)} de {Human.Size(u.Capacity)}";
@@ -434,7 +465,7 @@ public sealed partial class VentanaDoble
 
         using (var fuente = new Font("Segoe UI", 8.3f))
         using (var tinta = new SolidBrush(_tema.Tinta2))
-            g.DrawString($"{uso}   ·   {extra}", fuente, tinta, x, 22);
+            g.DrawString(_colLibre ? $"{uso}   ·   {extra}" : extra, fuente, tinta, x, 22);
 
         // --- precio de ESTE disco, en verde, arriba a la derecha ---
         if (PrecioPorGb > 0 && trabajo != null && trabajo.BytesHechos > 0)
@@ -635,7 +666,8 @@ public sealed partial class VentanaDoble
             Move = _cmbAccion.SelectedIndex == 1,
             Mirror = _cmbAccion.SelectedIndex == 2,
             Verify = _chkVerificar.Checked,
-            Conflict = _cmbAccion.SelectedIndex == 2 ? Conflict.Sobrescribir : Conflict.SaltarSiIgual
+            Conflict = _cmbAccion.SelectedIndex == 2 || Opciones.LeerBooleano("forzarCopia", false)
+                ? Conflict.Sobrescribir : Conflict.SaltarSiIgual
         };
         var motor = new CopyEngine(opciones);
 
@@ -734,11 +766,25 @@ public sealed partial class VentanaDoble
             BeginInvoke(() =>
             {
                 RefrescarPrecio();
+                if (Opciones.LeerBooleano("crearRegistro", false))
+                    RegistrarCopia(nombre, ficheros, bytes, errores);
                 Mensaje(errores == 0
                     ? $"✔ {nombre}: {ficheros} archivos, {Human.Size(bytes)}"
                     : $"⚠ {nombre}: {ficheros} archivos, {errores} error(es)");
             });
         };
+    }
+
+    /// <summary>Deja una linea en el registro de copias, si el usuario lo tiene encendido.</summary>
+    private static void RegistrarCopia(string destino, long ficheros, long bytes, long errores)
+    {
+        try
+        {
+            var ruta = Path.Combine(AppContext.BaseDirectory, "QBASFreemanCopy-Converter.registro.txt");
+            var linea = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\t{destino}\t{ficheros} archivos\t{Human.Size(bytes)}\t{errores} errores";
+            File.AppendAllText(ruta, linea + Environment.NewLine);
+        }
+        catch { }
     }
 }
 

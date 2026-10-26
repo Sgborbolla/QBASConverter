@@ -134,8 +134,8 @@ internal static class Opciones
     };
 
     /// <summary>Interruptor: se enciende y apaga cuando quieras y se guarda solo.</summary>
-    public static Control Interruptor(Tema t, string clave, string etiqueta, string ayuda, Action guardar)
-        => Controles.Interruptor(t, etiqueta, ayuda, LeerBooleano(clave, false), valor =>
+    public static Control Interruptor(Tema t, string clave, string etiqueta, string ayuda, Action guardar, bool porDefecto = false)
+        => Controles.Interruptor(t, etiqueta, ayuda, LeerBooleano(clave, porDefecto), valor =>
         {
             Guardar(clave, valor);
             guardar();

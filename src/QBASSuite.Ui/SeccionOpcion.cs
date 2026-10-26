@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 namespace QBASSuite.Ui;
 
@@ -46,14 +46,14 @@ public sealed class SeccionOpcion
                 p.Controls.Add(VentanaOpciones.Titulo(t, "DISPOSITIVOS"));
                 p.Controls.Add(VentanaOpciones.Nota(t, "Que discos y memorias se miran, y que columnas se Enseñan de cada uno."));
                 p.Controls.Add(SeccionActiva(t, "dispositivos", guardar));
-                p.Controls.Add(Opciones.Interruptor(t, "verDiscosInternos", "Mirar los discos internos", "Los discos fijos del equipo.", guardar));
-                p.Controls.Add(Opciones.Interruptor(t, "verDiscosExternos", "Mirar los discos externos y USB", "Los que se conectan por USB.", guardar));
-                p.Controls.Add(Opciones.Interruptor(t, "verRed", "Mirar las unidades de red", "Carpetas compartidas y servidores.", guardar));
-                p.Controls.Add(Opciones.Interruptor(t, "verópticos", "Mirar las unidades opticas", "Lector de CD y DVD.", guardar));
+                p.Controls.Add(Opciones.Interruptor(t, "verDiscosInternos", "Mirar los discos internos", "Los discos fijos del equipo.", guardar, true));
+                p.Controls.Add(Opciones.Interruptor(t, "verDiscosExternos", "Mirar los discos externos y USB", "Los que se conectan por USB.", guardar, true));
+                p.Controls.Add(Opciones.Interruptor(t, "verRed", "Mirar las unidades de red", "Carpetas compartidas y servidores.", guardar, true));
+                p.Controls.Add(Opciones.Interruptor(t, "verOpticos", "Mirar las unidades ópticas", "Lector de CD y DVD.", guardar));
                 p.Controls.Add(VentanaOpciones.Titulo(t, "COLUMNAS QUE SE EnseñaN"));
-                p.Controls.Add(Opciones.Interruptor(t, "mostrarLetra", "Mostrar la letra de la unidad", "El (C:), (D:)...", guardar));
-                p.Controls.Add(Opciones.Interruptor(t, "mostrarSistemaArchivos", "Mostrar el sistema de archivos", "NTFS, FAT32...", guardar));
-                p.Controls.Add(Opciones.Interruptor(t, "mostrarLibre", "Mostrar el espacio usado y total", "El \"X de Y\".", guardar));
+                p.Controls.Add(Opciones.Interruptor(t, "mostrarLetra", "Mostrar la letra de la unidad", "El (C:), (D:)...", guardar, true));
+                p.Controls.Add(Opciones.Interruptor(t, "mostrarSistemaArchivos", "Mostrar el sistema de archivos", "NTFS, FAT32...", guardar, true));
+                p.Controls.Add(Opciones.Interruptor(t, "mostrarLibre", "Mostrar el espacio usado y total", "El \"X de Y\".", guardar, true));
                 return p;
             }
         },
@@ -164,7 +164,7 @@ public sealed class SeccionOpcion
                 p.Controls.Add(VentanaOpciones.Titulo(t, "BUSCADOR"));
                 p.Controls.Add(VentanaOpciones.Nota(t, "Como busca el cuadro de busqueda."));
                 p.Controls.Add(SeccionActiva(t, "buscador", guardar));
-                p.Controls.Add(Opciones.Interruptor(t, "ocultarRutas", "Ocultar las rutas largas en los resultados", "Ensenia solo el nombre del fichero.", guardar));
+                p.Controls.Add(Opciones.Interruptor(t, "ocultarRutas", "Ocultar las rutas largas en los resultados", "Enseña solo el nombre del fichero.", guardar));
                 p.Controls.Add(Opciones.Interruptor(t, "buscarContenido", "Buscar tambien dentro de las carpetas", "Mira en las subcarpetas.", guardar));
                 return p;
             }
