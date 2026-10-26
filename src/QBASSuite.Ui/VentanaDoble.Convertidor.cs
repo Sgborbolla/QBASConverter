@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json;
 using QBASSuite.Media;
 using QBASSuite.Util;
@@ -18,7 +18,7 @@ public sealed partial class VentanaDoble
     private ComboBox _cmbPerfil = null!;
     private TextBox _txtSubcarpeta = null!;
     private TextBox _txtCarpetaFija = null!;
-    private CheckBox _chkGpu = null!;
+    private ComboBox _cmbMotor = null!;
     private CheckBox _chkEstructura = null!;
     private CheckBox _chkBorrarOriginal = null!;
     private CheckBox _chkAbrirAlTerminar = null!;
@@ -26,7 +26,8 @@ public sealed partial class VentanaDoble
     private Label _lblSalidaResumen = null!;
     private Label _lblConvEstado = null!, _lblCronometro = null!;
     private ListView _lstConv = null!;
-    private ProgressBar _barraConv = null!;
+    private readonly Dictionary<string, string> _prefijosConv = new(StringComparer.OrdinalIgnoreCase);
+    private BarraFina _barraConv = null!;
     private Button _btnConvertir = null!;
     private System.Windows.Forms.Timer _crono = null!;
     private readonly Stopwatch _relojConv = new();
@@ -39,13 +40,59 @@ public sealed partial class VentanaDoble
             Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
             BackColor = _tema.Panel, Padding = new Padding(10)
         };
-        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 150));   // perfil + formato
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 188));   // perfil + campos + casillas
         raiz.RowStyles.Add(new RowStyle(SizeType.Percent, 100));    // cola
-        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));   // opciones + boton
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));   // resumen + boton
         raiz.Controls.Add(PerfilYFormato(), 0, 0);
         raiz.Controls.Add(PanelColaConv(), 0, 1);
         raiz.Controls.Add(PieConvertidor(), 0, 2);
         return raiz;
+    }
+
+    /// <summary>Etiqueta + control, en una tabla que reparte el ancho disponible.
+    /// Asi el control nunca se sale de su mitad.</summary>
+    private TableLayoutPanel Campo(string texto, Control control, int anchoEtiqueta)
+    {
+        var c = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+            BackColor = Color.Transparent, Margin = new Padding(0, 1, 6, 1), Padding = new Padding(0)
+        };
+        c.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, anchoEtiqueta));
+        c.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        c.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        c.Controls.Add(new Label
+        {
+            Text = texto, Dock = DockStyle.Fill, AutoSize = false, AutoEllipsis = true,
+            ForeColor = _tema.Tinta2, TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(0), Padding = new Padding(0, 0, 4, 0)
+        }, 0, 0);
+
+        control.Dock = DockStyle.Fill;
+        control.Margin = new Padding(0, 3, 0, 3);
+        c.Controls.Add(control, 1, 0);
+        return c;
+    }
+
+    /// <summary>Dos campos lado a lado, a partes iguales.</summary>
+    private TableLayoutPanel DosColumnas(Control izquierda, Control derecha)
+    {
+        var f = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+            BackColor = Color.Transparent, Margin = new Padding(0), Padding = new Padding(0)
+        };
+        f.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        f.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        f.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        izquierda.Dock = DockStyle.Fill;
+        derecha.Dock = DockStyle.Fill;
+        izquierda.Margin = new Padding(0);
+        derecha.Margin = new Padding(0);
+        f.Controls.Add(izquierda, 0, 0);
+        f.Controls.Add(derecha, 1, 0);
+        return f;
     }
 
     // ---------- cabecera del convertidor: perfil, formato y modo ----------
@@ -53,12 +100,13 @@ public sealed partial class VentanaDoble
     {
         var t = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, BackColor = _tema.Panel, Padding = new Padding(0, 2, 0, 2)
+            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, BackColor = _tema.Panel, Padding = new Padding(0, 1, 0, 1)
         };
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));   // PERFIL
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // formato + calidad
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // a la vez + guardar
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // nombre + carpeta
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));   // casillas
 
         // 1) cabecera "PERFIL ..." con el selector de perfiles a la derecha
         // Tabla de 3 columnas: imagen | titulo | selector. Asi la imagen siempre
@@ -80,8 +128,8 @@ public sealed partial class VentanaDoble
 
         cab.Controls.Add(new Label
         {
-            Text = "PERFIL", Dock = DockStyle.Fill,
-            Font = new Font("Segoe UI", 9f, FontStyle.Bold), ForeColor = _tema.Tinta2,
+            Text = "PERFIL", Dock = DockStyle.Fill, AutoSize = false,
+            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), ForeColor = _tema.Tinta2,
             TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(6, 0, 0, 0), Margin = new Padding(0)
         }, 1, 0);
 
@@ -90,74 +138,139 @@ public sealed partial class VentanaDoble
         cab.Controls.Add(_cmbPerfil, 2, 0);
         t.Controls.Add(cab, 0, 0);
 
-        // 2) formato, calidad y conversiones a la vez
-        var fila = new FlowLayoutPanel { Dock = DockStyle.Fill, BackColor = _tema.Panel, WrapContents = false, Padding = new Padding(0, 4, 0, 0) };
-        fila.Controls.Add(Etiqueta("Formato:"));
-        _cmbFormato = new ComboBox { Width = 88, DropDownStyle = ComboBoxStyle.DropDownList };
+        // 2) formato + calidad
+        _cmbFormato = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
         _cmbFormato.Items.AddRange(ConversionEngine.Formatos.Cast<object>().ToArray());
         _cmbFormato.SelectedItem = "mp4";
-        fila.Controls.Add(_cmbFormato);
 
-        fila.Controls.Add(Etiqueta("Calidad:"));
-        _cmbModoConv = new ComboBox { Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
+        _cmbModoConv = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
         _cmbModoConv.Items.AddRange(new object[] { "Rápido (copia directa)", "Equilibrado", "Alta calidad" });
         _cmbModoConv.SelectedIndex = 1;
-        fila.Controls.Add(_cmbModoConv);
 
-        fila.Controls.Add(Etiqueta("A la vez:"));
-        _cmbLimiteConv = new ComboBox { Width = 110, DropDownStyle = ComboBoxStyle.DropDownList };
+        t.Controls.Add(DosColumnas(
+            Campo("Formato:", _cmbFormato, 66),
+            Campo("Calidad:", _cmbModoConv, 60)), 0, 1);
+
+        // 3) a la vez + guardar (tantos a la vez como nucleos tiene el equipo)
+        _cmbLimiteConv = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
         _cmbLimiteConv.Items.Add("Automático");
-        for (int i = 1; i <= 16; i++) _cmbLimiteConv.Items.Add(i.ToString());
+        var nucleos = Math.Max(1, Environment.ProcessorCount);
+        for (int i = 1; i <= nucleos; i++) _cmbLimiteConv.Items.Add(i.ToString());
         _cmbLimiteConv.SelectedIndex = 0;
-        fila.Controls.Add(_cmbLimiteConv);
-        t.Controls.Add(fila, 0, 1);
+        new ToolTip().SetToolTip(_cmbLimiteConv,
+            $"Cuántos archivos se convierten al mismo tiempo. Este equipo tiene {nucleos} núcleos.");
 
-        // 3) donde se guarda
-        var fila2 = new FlowLayoutPanel { Dock = DockStyle.Fill, BackColor = _tema.Panel, WrapContents = false, Padding = new Padding(0, 4, 0, 0) };
-        fila2.Controls.Add(Etiqueta("Guardar:"));
-        _cmbSalida = new ComboBox { Width = 180, DropDownStyle = ComboBoxStyle.DropDownList };
-        _cmbSalida.Items.AddRange(new object[] { "Subcarpeta junto al original", "Misma carpeta del original", "Carpeta fija que yo elija" });
+        _cmbSalida = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+        _cmbSalida.Items.AddRange(new object[] { "Subcarpeta al lado", "Misma carpeta", "Carpeta fija" });
         _cmbSalida.SelectedIndex = 0;
         _cmbSalida.SelectedIndexChanged += (_, _) => PintarResumenSalida();
-        fila2.Controls.Add(_cmbSalida);
+        new ToolTip().SetToolTip(_cmbSalida,
+            "Subcarpeta al lado: crea una carpeta junto a los originales.\n" +
+            "Misma carpeta: deja el resultado junto al original.\n" +
+            "Carpeta fija: todo va a la carpeta que elijas con «Carpeta…».");
 
-        fila2.Controls.Add(Etiqueta("Nombre:"));
-        _txtSubcarpeta = new TextBox { Width = 82, Text = "Convertidos" };
+        t.Controls.Add(DosColumnas(
+            Campo("A la vez:", _cmbLimiteConv, 62),
+            Campo("Guardar:", _cmbSalida, 60)), 0, 2);
+
+        // 4) nombre de la subcarpeta + boton de carpeta fija
+        _txtSubcarpeta = new TextBox { Text = "Convertidos" };
         _txtSubcarpeta.TextChanged += (_, _) => PintarResumenSalida();
-        fila2.Controls.Add(_txtSubcarpeta);
 
-        var btnCarpeta = new BotonRedondo(_tema) { Text = "Carpeta…", Width = 92, Radio = 8 };
+        var btnCarpeta = new BotonRedondo(_tema) { Text = "Carpeta…", Radio = 3 };
         btnCarpeta.Click += (_, _) => ElegirCarpetaFija();
-        fila2.Controls.Add(btnCarpeta);
-        _txtCarpetaFija = new TextBox { Width = 120, ReadOnly = true, BorderStyle = BorderStyle.FixedSingle };
-        fila2.Controls.Add(_txtCarpetaFija);
-        t.Controls.Add(fila2, 0, 2);
 
-        // 4) casillas, como en la captura (dos columnas)
-        var casillas = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3, BackColor = _tema.Panel };
+        _txtCarpetaFija = new TextBox { ReadOnly = true, BorderStyle = BorderStyle.FixedSingle, Visible = false };
+
+        t.Controls.Add(DosColumnas(
+            Campo("Nombre:", _txtSubcarpeta, 62),
+            Campo("", btnCarpeta, 0)), 0, 3);
+
+        // 5) casillas, como en la captura (dos columnas)
+        var casillas = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3, BackColor = Color.Transparent };
         casillas.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         casillas.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        _chkEstructura = new CheckBox { Text = "Mantener carpetas", AutoSize = true, ForeColor = _tema.Tinta };
-        _chkBorrarOriginal = new CheckBox { Text = "Borrar original si salió bien", AutoSize = true, ForeColor = _tema.Tinta };
-        _chkNoReconvertir = new CheckBox { Text = "No reconvertir lo ya hecho", AutoSize = true, Checked = true, ForeColor = _tema.Tinta };
-        _chkAbrirAlTerminar = new CheckBox { Text = "Abrir carpeta al terminar", AutoSize = true, Checked = true, ForeColor = _tema.Tinta };
-        _chkGpu = new CheckBox
+        for (int i = 0; i < 3; i++) casillas.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
+
+        CheckBox Casilla(string texto, bool marcada = false) => new()
         {
-            Text = ConversionEngine.Disponible && !string.IsNullOrWhiteSpace(ConversionEngine.DetectarGpu())
-                ? $"Usar GPU ({ConversionEngine.NombreGpu()})"
-                : "Usar GPU (si hay)",
-            AutoSize = true, Checked = true, ForeColor = _tema.Tinta
+            Text = texto, AutoSize = false, Dock = DockStyle.Fill, Checked = marcada,
+            ForeColor = _tema.Tinta, Margin = new Padding(0),
+            Font = new Font("Segoe UI", 8.25f)
         };
+
+        _chkEstructura = Casilla("Mantener carpetas");
+        _chkNoReconvertir = Casilla("No reconvertir lo ya hecho", true);
+        _chkBorrarOriginal = Casilla("Borrar original si salió bien");
+        _chkAbrirAlTerminar = Casilla("Abrir carpeta al terminar", true);
+
+        // --- MOTOR: Automatico / GPU / CPU (lo que pidio el usuario) ---
+        var filaMotor = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
+            BackColor = Color.Transparent, Margin = new Padding(0), Padding = new Padding(0)
+        };
+        filaMotor.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 46));
+        filaMotor.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 132));
+        filaMotor.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        filaMotor.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        filaMotor.Controls.Add(new Label
+        {
+            Text = "Motor:", Dock = DockStyle.Fill, AutoSize = false,
+            ForeColor = _tema.Tinta2, TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 8.25f), Margin = new Padding(0)
+        }, 0, 0);
+
+        _cmbMotor = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 2, 6, 2) };
+        _cmbMotor.Items.Add("Automático");
+        _cmbMotor.Items.Add(ConversionEngine.Disponible && !string.IsNullOrWhiteSpace(ConversionEngine.DetectarGpu())
+            ? "GPU · " + ConversionEngine.NombreGpu()
+            : "GPU (si hay)");
+        _cmbMotor.Items.Add($"CPU · {nucleos} núcleos");
+        _cmbMotor.SelectedIndex = 0;
+        new ToolTip().SetToolTip(_cmbMotor,
+            "Automático usa la GPU si existe y, si no, la CPU. La GPU convierte mucho más rápido; la CPU siempre funciona.");
+        filaMotor.Controls.Add(_cmbMotor, 1, 0);
+
+        var lblMotorInfo = new Label
+        {
+            Dock = DockStyle.Fill, AutoSize = false, AutoEllipsis = true,
+            ForeColor = _tema.Tenue, TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 7.8f), Margin = new Padding(0)
+        };
+        filaMotor.Controls.Add(lblMotorInfo, 2, 0);
+        _cmbMotor.SelectedIndexChanged += (_, _) =>
+        {
+            lblMotorInfo.Text = _cmbMotor.SelectedIndex switch
+            {
+                1 => ConversionEngine.Disponible ? "acelerado por hardware" : "no hay GPU: se usará la CPU",
+                2 => $"{nucleos} a la vez como máximo",
+                _ => ConversionEngine.Disponible ? "GPU si puede, si no CPU" : "CPU (no hay GPU)"
+            };
+            GuardarSesionConversion(silencioso: true);
+        };
+        lblMotorInfo.Text = ConversionEngine.Disponible ? "GPU si puede, si no CPU" : "CPU (no hay GPU)";
+
         casillas.Controls.Add(_chkEstructura, 0, 0);
         casillas.Controls.Add(_chkNoReconvertir, 1, 0);
         casillas.Controls.Add(_chkBorrarOriginal, 0, 1);
         casillas.Controls.Add(_chkAbrirAlTerminar, 1, 1);
-        casillas.Controls.Add(_chkGpu, 0, 2);
-        casillas.SetColumnSpan(_chkGpu, 2);
-        t.Controls.Add(casillas, 0, 3);
+        casillas.Controls.Add(filaMotor, 0, 2);
+        casillas.SetColumnSpan(filaMotor, 2);
+        t.Controls.Add(casillas, 0, 4);
 
         return t;
     }
+
+    /// <summary>¿Convertir con la GPU? Segun el motor elegido (Auto/GPU/CPU).</summary>
+    private bool MotorGpu =>
+        _cmbMotor?.SelectedIndex switch
+        {
+            1 => ConversionEngine.Disponible,
+            2 => false,
+            _ => ConversionEngine.Disponible
+        };
 
     // ---------- cola de conversion ----------
     private Control PanelColaConv()
@@ -178,15 +291,21 @@ public sealed partial class VentanaDoble
         cab.Controls.Add(bCarpeta);
         tra.Controls.Add(cab);
 
-        _lstConv = new ListView
+        _lstConv = new ListaOscura(_tema)
         {
-            View = View.Details, FullRowSelect = true, MultiSelect = true, Dock = DockStyle.Fill,
-            BackColor = _tema.Panel2, ForeColor = _tema.Tinta, BorderStyle = BorderStyle.None,
+            MultiSelect = true, Dock = DockStyle.Fill,
+            BackColor = _tema.Panel2, ForeColor = _tema.Tinta,
             HeaderStyle = ColumnHeaderStyle.Nonclickable
         };
         _lstConv.Columns.Add("Archivo", 170);
         _lstConv.Columns.Add("Tamaño", 68);
         _lstConv.Columns.Add("Estado", 100);
+        _lstConv.Resize += (_, _) =>
+        {
+            if (_lstConv.Columns.Count < 3) return;
+            var ancho = Math.Max(90, _lstConv.ClientSize.Width - 176);
+            _lstConv.Columns[0].Width = ancho;
+        };
         _lstConv.KeyDown += (_, e) => { if (e.KeyCode == Keys.Delete) QuitarConvSeleccion(); };
         tra.Controls.Add(_lstConv);
 
@@ -199,9 +318,9 @@ public sealed partial class VentanaDoble
     private Control PieConvertidor()
     {
         var t = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = _tema.Panel };
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
-        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+        t.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
 
         _lblSalidaResumen = new Label { Dock = DockStyle.Fill, ForeColor = _tema.Tinta2, TextAlign = ContentAlignment.MiddleLeft };
         t.Controls.Add(_lblSalidaResumen, 0, 0);
@@ -211,46 +330,47 @@ public sealed partial class VentanaDoble
         var medio = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel };
         _lblCronometro = new Label
         {
-            Text = "00:00:00", Dock = DockStyle.Left, Width = 150,
-            Font = new Font("Consolas", 22f, FontStyle.Bold), ForeColor = _tema.Tinta,
+            Text = "00:00:00", Dock = DockStyle.Left, Width = 118,
+            Font = new Font("Consolas", 19f, FontStyle.Bold), ForeColor = _tema.Tinta,
             TextAlign = ContentAlignment.MiddleLeft
         };
         medio.Controls.Add(_lblCronometro);
 
         var acciones = new FlowLayoutPanel
         {
-            Dock = DockStyle.Right, Width = 248, FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false, BackColor = _tema.Panel, Padding = new Padding(0, 16, 0, 0)
+            Dock = DockStyle.Right, Width = 250, FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false, BackColor = _tema.Panel, Padding = new Padding(0, 12, 0, 0)
         };
         _btnConvertir = new BotonRedondo(_tema)
         {
-            Text = "CONVERTIR", Width = 148, Height = 40, Primario = true, Radio = 10,
-            Font = new Font("Segoe UI", 10f, FontStyle.Bold)
+            Text = "CONVERTIR", Width = 132, Height = 38, Primario = true, Radio = 3,
+            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold)
         };
         _btnConvertir.Click += async (_, _) => await LanzarConversion();
         acciones.Controls.Add(_btnConvertir);
 
-        var bDetener = new BotonRedondo(_tema) { Text = "■", Width = 32, Height = 40, Radio = 8, Font = new Font("Segoe UI", 10f) };
+        var bDetener = new BotonRedondo(_tema) { Width = 28, Height = 38, Radio = 3, Image = Iconos.Bitmap(Icono.Detener, 14, _tema.Tinta, _tema.AcentoSuave) };
         bDetener.Click += (_, _) => { _ctsConv?.Cancel(); };
-        var bQuitar = new BotonRedondo(_tema) { Text = "✕", Width = 32, Height = 40, Radio = 8, Font = new Font("Segoe UI", 10f) };
+        var bQuitar = new BotonRedondo(_tema) { Width = 28, Height = 38, Radio = 3, Image = Iconos.Bitmap(Icono.Quitar, 14, _tema.Tinta, _tema.AcentoSuave) };
         bQuitar.Click += (_, _) => QuitarConvSeleccion();
-        var bLimpiar = new BotonRedondo(_tema) { Text = "🗑", Width = 32, Height = 40, Radio = 8, Font = new Font("Segoe UI", 10f) };
-        bLimpiar.Click += (_, _) => { _lstConv.Items.Clear(); ActualizarEstadoConv(); };
+        var bLimpiar = new BotonRedondo(_tema) { Width = 28, Height = 38, Radio = 3, Image = Iconos.Bitmap(Icono.Papelera, 14, _tema.Tinta, _tema.AcentoSuave) };
+        bLimpiar.Click += (_, _) => { _lstConv.Items.Clear(); _prefijosConv.Clear(); ActualizarEstadoConv(); };
         acciones.Controls.Add(bDetener);
         acciones.Controls.Add(bQuitar);
         acciones.Controls.Add(bLimpiar);
         medio.Controls.Add(acciones);
         t.Controls.Add(medio, 0, 1);
 
-        _barraConv = new ProgressBar { Dock = DockStyle.Fill, Height = 16, Style = ProgressBarStyle.Continuous };
+        _barraConv = new BarraFina(_tema) { Dock = DockStyle.Fill, Height = 8, Margin = new Padding(0, 10, 0, 10) };
         t.Controls.Add(_barraConv, 0, 2);
 
         _crono = new System.Windows.Forms.Timer { Interval = 500 };
         _crono.Tick += (_, _) => { if (_relojConv.IsRunning) _lblCronometro.Text = _relojConv.Elapsed.ToString(@"hh\:mm\:ss"); };
         _crono.Start();
 
-        // Preguntar si hay cola de conversión guardada
-        ReanudarSiHayConversion();
+        // La pregunta de "continuar la cola guardada" se hace al mostrarse la
+        // ventana (ver VentanaDoble.Construir), no aqui: si se pregunta mientras se
+        // construye, el aviso sale antes que la ventana y parece que se congelo.
 
         return t;
     }
@@ -272,38 +392,80 @@ public sealed partial class VentanaDoble
     {
         using var dlg = new FolderBrowserDialog { Description = "Elige carpeta con archivos para convertir" };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
-        var encontrados = new List<string>();
+        var encontrados = new List<(string Ruta, string Prefijo)>();
         try
         {
             foreach (var f in Directory.EnumerateFiles(dlg.SelectedPath, "*.*", SearchOption.AllDirectories))
-                if (ConversionEngine.EsSoportado(f)) encontrados.Add(f);
+                if (ConversionEngine.EsSoportado(f))
+                    encontrados.Add((f, PrefijoDeCarpeta(dlg.SelectedPath, f)));
         }
         catch { }
         if (encontrados.Count == 0) { Mensaje("En esa carpeta no hay archivos soportados."); return; }
+
+        // Si se elige una carpeta, lo natural es conservar sus subcarpetas.
+        _chkEstructura.Checked = true;
         AnadirRutasConv(encontrados);
     }
 
     private void AnadirRutasConv(IEnumerable<string> rutas)
+        => AnadirRutasConv(rutas.Select(r => (Ruta: r, Prefijo: PrefijoDeArchivo(r))));
+
+    /// <summary>Anade archivos a la cola guardando la carpeta raiz que hay que
+    /// conservar en la salida (nombre de la carpeta arrastrada o elegida).</summary>
+    private void AnadirRutasConv(IEnumerable<(string Ruta, string Prefijo)> rutas)
     {
-        foreach (var r in rutas)
+        foreach (var (r, prefijo) in rutas)
         {
             if (_lstConv.Items.Cast<ListViewItem>().Any(x => string.Equals(x.Tag as string, r, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!string.IsNullOrWhiteSpace(prefijo)) _prefijosConv[r] = prefijo;
                 continue;
+            }
             long tam = 0;
             try { tam = new FileInfo(r).Length; } catch { }
             var it = new ListViewItem(Path.GetFileName(r)) { Tag = r };
             it.SubItems.Add(Human.Size(tam));
             it.SubItems.Add("En cola");
             _lstConv.Items.Add(it);
+            _prefijosConv[r] = prefijo;
         }
         ActualizarEstadoConv();
         GuardarSesionConversion(true);
     }
 
+    /// <summary>Carpeta que se conserva al convertir un archivo suelto: la que lo
+    /// contiene. Asi no se pierde el nombre al arrastrarlo.</summary>
+    private static string PrefijoDeArchivo(string archivo)
+    {
+        try
+        {
+            var carpeta = Path.GetDirectoryName(archivo);
+            return string.IsNullOrWhiteSpace(carpeta) ? "" : new DirectoryInfo(carpeta).Name;
+        }
+        catch { return ""; }
+    }
+
+    /// <summary>Prefijo de un archivo que esta dentro de una carpeta arrastrada o
+    /// elegida: el nombre de esa carpeta MAS sus subcarpetas (SerieX\T1).</summary>
+    private static string PrefijoDeCarpeta(string carpeta, string archivo)
+    {
+        try
+        {
+            var nombre = new DirectoryInfo(carpeta).Name;
+            var rel = Path.GetRelativePath(carpeta, archivo);
+            var sub = Path.GetDirectoryName(rel);
+            return string.IsNullOrEmpty(sub) ? nombre : Path.Combine(nombre, sub);
+        }
+        catch { return ""; }
+    }
+
     private void QuitarConvSeleccion()
     {
         foreach (ListViewItem it in _lstConv.SelectedItems.Cast<ListViewItem>().ToList())
+        {
+            if (it.Tag is string ruta) _prefijosConv.Remove(ruta);
             _lstConv.Items.Remove(it);
+        }
         ActualizarEstadoConv();
         GuardarSesionConversion(true);
     }
@@ -312,7 +474,7 @@ public sealed partial class VentanaDoble
     {
         if (_lblConvEstado != null)
             _lblConvEstado.Text = _lstConv.Items.Count == 0
-                ? "Sin trabajos. Añade archivos y pulsa CONVERTIR."
+                ? "Sin trabajos. Arrastra archivos aquí (o añádelos) y pulsa CONVERTIR."
                 : $"{_lstConv.Items.Count} archivos en cola.";
     }
 
@@ -377,7 +539,7 @@ public sealed partial class VentanaDoble
                 ["estructura"] = _chkEstructura.Checked,
                 ["borrarOriginal"] = _chkBorrarOriginal.Checked,
                 ["abrirAlTerminar"] = _chkAbrirAlTerminar.Checked,
-                ["gpu"] = _chkGpu?.Checked ?? true
+                ["motor"] = _cmbMotor?.SelectedIndex ?? 0
             };
             GuardarPerfiles(perfiles);
             CargarPerfiles();
@@ -406,7 +568,8 @@ public sealed partial class VentanaDoble
             _chkEstructura.Checked = S("estructura").Equals("True", StringComparison.OrdinalIgnoreCase);
             _chkBorrarOriginal.Checked = S("borrarOriginal").Equals("True", StringComparison.OrdinalIgnoreCase);
             _chkAbrirAlTerminar.Checked = S("abrirAlTerminar").Equals("True", StringComparison.OrdinalIgnoreCase);
-            if (_chkGpu != null) _chkGpu.Checked = S("gpu").Equals("True", StringComparison.OrdinalIgnoreCase);
+            if (int.TryParse(S("motor"), out var imo) && _cmbMotor != null)
+                _cmbMotor.SelectedIndex = Math.Clamp(imo, 0, _cmbMotor.Items.Count - 1);
             PintarResumenSalida();
             Mensaje($"Perfil «{nombre}» aplicado.");
         }
@@ -452,8 +615,14 @@ public sealed partial class VentanaDoble
             MantenerEstructura = _chkEstructura.Checked,
             Conflicto = _chkNoReconvertir.Checked ? SalidaConflicto.Saltar : SalidaConflicto.Sobrescribir,
             BorrarOriginalSiOk = _chkBorrarOriginal.Checked,
-            UsarGpu = _chkGpu?.Checked ?? true
+            UsarGpu = MotorGpu
         };
+
+        // La carpeta raiz de cada archivo arrastrado/elegido, para reproducirla.
+        req.Subcarpetas.Clear();
+        foreach (var a in archivos)
+            if (_prefijosConv.TryGetValue(a, out var prefijo) && !string.IsNullOrWhiteSpace(prefijo))
+                req.Subcarpetas[a] = prefijo;
 
         var aLaVez = LimiteSeleccionado();
         _ctsConv = new CancellationTokenSource();
@@ -505,9 +674,10 @@ public sealed partial class VentanaDoble
 
     private int LimiteSeleccionado()
     {
+        var nucleos = Math.Max(1, Environment.ProcessorCount);
         var txt = _cmbLimiteConv.SelectedItem?.ToString() ?? "Automático";
-        if (int.TryParse(txt, out var n)) return Math.Clamp(n, 1, 16);
-        return ConversionEngine.ProcesosSugeridos();
+        if (int.TryParse(txt, out var n)) return Math.Clamp(n, 1, nucleos);
+        return Math.Min(ConversionEngine.ProcesosSugeridos(), nucleos);
     }
 
     // ---------- ajustes guardados ----------
@@ -522,7 +692,13 @@ public sealed partial class VentanaDoble
             bool B(string k, bool def) => r.TryGetProperty(k, out var v) && (v.ValueKind == JsonValueKind.True || (v.ValueKind == JsonValueKind.String && v.GetString() == "True")) ? true : def;
             int I(string k, int def) => r.TryGetProperty(k, out var v) && v.TryGetInt32(out var i) ? i : def;
 
-            if (_cmbLimiteConv != null) _cmbLimiteConv.SelectedItem = S("limiteConv", "Automático");
+            if (_cmbLimiteConv != null)
+            {
+                _cmbLimiteConv.SelectedItem = S("limiteConv", "Automático");
+                if (_cmbLimiteConv.SelectedIndex < 0) _cmbLimiteConv.SelectedIndex = 0;
+            }
+            if (_cmbMotor != null && r.TryGetProperty("motor", out var mo) && mo.TryGetInt32(out var imo))
+                _cmbMotor.SelectedIndex = Math.Clamp(imo, 0, _cmbMotor.Items.Count - 1);
             if (_cmbFormato != null) _cmbFormato.SelectedItem = S("formato", "mp4");
             if (_cmbModoConv != null) _cmbModoConv.SelectedIndex = Math.Clamp(I("modoIdx", 1), 0, 2);
             if (_cmbSalida != null) _cmbSalida.SelectedIndex = Math.Clamp(I("salida", 0), 0, 2);
@@ -573,7 +749,8 @@ public sealed partial class VentanaDoble
                 borrarOriginal = _chkBorrarOriginal?.Checked ?? false,
                 abrirAlTerminar = _chkAbrirAlTerminar?.Checked ?? false,
                 noReconvertir = _chkNoReconvertir?.Checked ?? true,
-                gpu = _chkGpu?.Checked ?? true
+                motor = _cmbMotor?.SelectedIndex ?? 0,
+                subcarpetas = _prefijosConv
             }, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(FicheroTrabajoConv, json);
         }
@@ -601,7 +778,7 @@ public sealed partial class VentanaDoble
                 }
             if (lista.Count == 0) { try { File.Delete(FicheroTrabajoConv); } catch { } return; }
 
-            var r = MessageBox.Show(
+            var r = MessageBox.Show(this,
                 $"Hay una cola de conversión guardada ({lista.Count} archivo(s)).\n\n¿Quieres continuarla?\n\n· Sí: se vuelve a cargar.\n· No: se descarta.",
                 "QBASFreemanCopy-Converter · continuar conversión",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question);
@@ -624,10 +801,20 @@ public sealed partial class VentanaDoble
                 if (raiz.TryGetProperty("borrarOriginal", out var bo) && _chkBorrarOriginal != null) _chkBorrarOriginal.Checked = bo.ValueKind == JsonValueKind.True;
                 if (raiz.TryGetProperty("abrirAlTerminar", out var aa) && _chkAbrirAlTerminar != null) _chkAbrirAlTerminar.Checked = aa.ValueKind == JsonValueKind.True;
                 if (raiz.TryGetProperty("noReconvertir", out var nr) && _chkNoReconvertir != null) _chkNoReconvertir.Checked = nr.ValueKind == JsonValueKind.True;
-                if (raiz.TryGetProperty("gpu", out var gp) && _chkGpu != null) _chkGpu.Checked = gp.ValueKind == JsonValueKind.True;
+                if (raiz.TryGetProperty("motor", out var mo) && _cmbMotor != null && mo.TryGetInt32(out var imo))
+                    _cmbMotor.SelectedIndex = Math.Clamp(imo, 0, _cmbMotor.Items.Count - 1);
 
                 _lstConv.Items.Clear();
-                AnadirRutasConv(lista);
+                _prefijosConv.Clear();
+                if (raiz.TryGetProperty("subcarpetas", out var subs) && subs.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var p in subs.EnumerateObject())
+                        if (p.Value.ValueKind == JsonValueKind.String)
+                            _prefijosConv[p.Name] = p.Value.GetString() ?? "";
+                }
+                AnadirRutasConv(lista.Select(r => (r, _prefijosConv.TryGetValue(r, out var p)
+                    ? p
+                    : PrefijoDeArchivo(r))).ToList());
                 PintarResumenSalida();
             }
             else

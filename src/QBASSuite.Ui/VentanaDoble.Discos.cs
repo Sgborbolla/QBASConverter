@@ -29,6 +29,9 @@ public sealed partial class VentanaDoble
     private TextBox _txtPrecioPorGb = null!;
     private Label _lblPrecioTotal = null!;
     private readonly List<string> _origenes = new();
+    /// <summary>Carpeta raiz que se conserva en el destino para cada origen
+    /// arrastrado o elegido (nombre de la carpeta, no la ruta del disco).</summary>
+    private readonly Dictionary<string, string> _prefijosOrigen = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _destinos = new(StringComparer.OrdinalIgnoreCase);
     private readonly CopyJobsManager _trabajos = new();
     private CancellationTokenSource? _ctsEnumerar;
@@ -37,14 +40,16 @@ public sealed partial class VentanaDoble
     {
         var raiz = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5,
+            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7,
             BackColor = _tema.PanelDiscos, Padding = new Padding(8)
         };
-        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // titulo
-        raiz.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // lista de discos (barras)
-        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // origen + destinos
-        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));   // COPIAR + opciones
-        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));   // precio por GB
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));   // titulo + iconos
+        raiz.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // lista de discos
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));   // origenes + añadir
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // velocidad / verificar / accion
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // estructura / prioridad
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));   // COPIAR + pausa + limpiar
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // precio por GB
 
         var cab = new TableLayoutPanel
         {
@@ -53,7 +58,7 @@ public sealed partial class VentanaDoble
         };
         cab.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 26));
         cab.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        cab.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 228));
+        cab.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
         cab.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         // La imagen del multicopiador, pequena, delante del titulo.
@@ -66,14 +71,14 @@ public sealed partial class VentanaDoble
         {
             Text = "DISCOS  ·  copia a todos a la vez",
             Dock = DockStyle.Fill, ForeColor = _tema.Acento, AutoEllipsis = true, AutoSize = false,
-            Font = new Font("Segoe UI", 9f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(2, 0, 0, 0), Margin = new Padding(0)
         }, 1, 0);
 
         // --- barra de iconos de arriba: todos los dibujos son nuestros ---
         var accionesCab = new FlowLayoutPanel
         {
-            Dock = DockStyle.Right, Width = 228, FlowDirection = FlowDirection.RightToLeft,
+            Dock = DockStyle.Right, Width = 168, FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false, BackColor = _tema.PanelDiscos, Padding = new Padding(0, 1, 0, 0)
         };
         accionesCab.Controls.Add(IconoBarra(Icono.Refrescar, "Refrescar los discos", () => CargarUnidades()));
@@ -96,9 +101,9 @@ public sealed partial class VentanaDoble
         cab.Controls.Add(accionesCab, 2, 0);
         raiz.Controls.Add(cab, 0, 0);
 
-        _panelDiscos = new FlowLayoutPanel
+        _panelDiscos = new PanelDesliz(_tema)
         {
-            Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.TopDown,
+            Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
             WrapContents = false, BackColor = Color.Transparent, Padding = new Padding(0, 4, 4, 4)
         };
 
@@ -115,11 +120,20 @@ public sealed partial class VentanaDoble
         };
         _fondoDiscos = fondo;
         fondo.Controls.Add(_panelDiscos);
+
+        // El navegador interno vive aqui mismo, encima de la lista de discos:
+        // doble clic en un disco y se entra en el sin abrir el Explorador.
+        _vistaNav = ConstruirNavegador();
+        _vistaNav.Visible = false;
+        fondo.Controls.Add(_vistaNav);
+
         raiz.Controls.Add(fondo, 0, 1);
 
         raiz.Controls.Add(BarraOrigenDestino(), 0, 2);
-        raiz.Controls.Add(BarraCopiar(), 0, 3);
-        raiz.Controls.Add(BarraPrecio(), 0, 4);
+        raiz.Controls.Add(BarraOpcionesUno(), 0, 3);
+        raiz.Controls.Add(BarraOpcionesDos(), 0, 4);
+        raiz.Controls.Add(BarraCopiar(), 0, 5);
+        raiz.Controls.Add(BarraPrecio(), 0, 6);
         return raiz;
     }
 
@@ -149,57 +163,94 @@ public sealed partial class VentanaDoble
     }
 
     private Control BarraOrigenDestino()
-    {        var p = new Panel { Dock = DockStyle.Fill, BackColor = _tema.PanelDiscos };
+    {
+        var p = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, BackColor = Color.Transparent,
+            ColumnCount = 2, RowCount = 1, Margin = new Padding(0), Padding = new Padding(0)
+        };
+        p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        p.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 132));
+        p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         _flOrigen = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill, AutoScroll = true, BackColor = _tema.PanelDiscos, Padding = new Padding(0, 4, 0, 0)
+            Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.Transparent,
+            Padding = new Padding(0, 2, 6, 0), Margin = new Padding(0), WrapContents = false
         };
-        p.Controls.Add(_flOrigen);
+        p.Controls.Add(_flOrigen, 0, 0);
 
-        var btn = new BotonRedondo(_tema) { Text = "Añadir origen…", Dock = DockStyle.Right, Width = 128, Radio = 8 };
+        var btn = new BotonRedondo(_tema) { Text = "Añadir origen…", Dock = DockStyle.Fill, Radio = 3, Margin = new Padding(0, 2, 0, 2) };
         btn.Click += (_, _) => AnadirOrigenDialogo();
-        p.Controls.Add(btn);
+        p.Controls.Add(btn, 1, 0);
         return p;
     }
 
-    private Control BarraCopiar()
+    // ---------- opciones de copia, en dos lineas que siempre caben ----------
+    private Control BarraOpcionesUno()
     {
-        var p = new Panel { Dock = DockStyle.Fill, BackColor = _tema.PanelDiscos, Padding = new Padding(0, 4, 0, 0) };
-
-        _btnCopiar = new BotonRedondo(_tema)
+        var t = new TableLayoutPanel
         {
-            Text = "COPIAR A LOS DISCOS MARCADOS", Dock = DockStyle.Left, Width = 290, Height = 34,
-            Primario = true, Font = new Font("Segoe UI", 9.5f, FontStyle.Bold), Margin = new Padding(0, 0, 8, 0)
+            Dock = DockStyle.Fill, BackColor = Color.Transparent,
+            ColumnCount = 4, RowCount = 1, Margin = new Padding(0), Padding = new Padding(0)
         };
-        _btnCopiar.Click += async (_, _) => await LanzarCopia();
-        p.Controls.Add(_btnCopiar);
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 46));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var bPausaTodo = new BotonRedondo(_tema) { Text = "Pausa / Sigue", Dock = DockStyle.Left, Width = 112, Height = 34, Margin = new Padding(0, 0, 8, 0) };
-        bPausaTodo.Click += (_, _) => AlternarPausaTodos();
-        var bLimpia = new BotonRedondo(_tema) { Text = "Limpiar hechos", Dock = DockStyle.Left, Width = 116, Height = 34, Margin = new Padding(0, 0, 8, 0) };
-        bLimpia.Click += (_, _) => _trabajos.LimpiarTerminados();
-        p.Controls.Add(bPausaTodo);
-        p.Controls.Add(bLimpia);
-
-        var op = new FlowLayoutPanel { Dock = DockStyle.Right, Width = 780, FlowDirection = FlowDirection.RightToLeft, WrapContents = false, BackColor = _tema.PanelDiscos, Padding = new Padding(0, 2, 0, 0) };
-        _chkVeloz = new CheckBox { Text = "Velocidad máxima real", AutoSize = true, Checked = true, ForeColor = _tema.Tinta };
-        _chkVerificar = new CheckBox { Text = "Verificar SHA-256", AutoSize = true, ForeColor = _tema.Tinta };
-        _cmbAccion = new ComboBox { Width = 110, DropDownStyle = ComboBoxStyle.DropDownList };
+        _chkVeloz = new CheckBox
+        {
+            Text = "Velocidad máxima real", AutoSize = false, Dock = DockStyle.Fill,
+            Checked = true, ForeColor = _tema.Tinta, Margin = new Padding(0),
+            Font = new Font("Segoe UI", 8.25f)
+        };
+        _chkVerificar = new CheckBox
+        {
+            Text = "Verificar SHA-256", AutoSize = false, Dock = DockStyle.Fill,
+            ForeColor = _tema.Tinta, Margin = new Padding(0), Font = new Font("Segoe UI", 8.25f)
+        };
+        _cmbAccion = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 2, 0, 2) };
         _cmbAccion.Items.AddRange(new object[] { "Copiar", "Mover", "Espejo" });
         _cmbAccion.SelectedIndex = 0;
-        _cmbEstructura = new ComboBox { Width = 150, DropDownStyle = ComboBoxStyle.DropDownList };
+
+        t.Controls.Add(_chkVeloz, 0, 0);
+        t.Controls.Add(_chkVerificar, 1, 0);
+        t.Controls.Add(new Label
+        {
+            Text = "Acción:", Dock = DockStyle.Fill, ForeColor = _tema.Tinta2,
+            TextAlign = ContentAlignment.MiddleRight, Margin = new Padding(0, 0, 4, 0),
+            Font = new Font("Segoe UI", 8.25f)
+        }, 2, 0);
+        t.Controls.Add(_cmbAccion, 3, 0);
+        return t;
+    }
+
+    private Control BarraOpcionesDos()
+    {
+        var t = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, BackColor = Color.Transparent,
+            ColumnCount = 4, RowCount = 1, Margin = new Padding(0), Padding = new Padding(0)
+        };
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 68));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 66));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        _cmbEstructura = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 2, 0, 2) };
         _cmbEstructura.Items.AddRange(new object[] { "Plana", "Por extensión", "Por tipo", "Por fecha", "Como en el origen", "Por tamaño", "Solo nombres" });
         _cmbEstructura.SelectedIndex = 4;
 
-        // --- PRIORIDAD AUTOMÁTICA ---
-        _cmbPrioridadAuto = new ComboBox { Width = 205, DropDownStyle = ComboBoxStyle.DropDownList };
+        _cmbPrioridadAuto = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, Margin = new Padding(0, 2, 0, 2) };
         _cmbPrioridadAuto.Items.AddRange(new object[] {
-            "Prioridad auto: Por orden",
-            "Prioridad auto: El que menos le queda",
-            "Prioridad auto: El más rápido",
-            "Prioridad auto: El más lento",
-            "Prioridad auto: Solo el marcado con ★"
+            "Por orden de la lista",
+            "El que menos le queda",
+            "El más rápido",
+            "El más lento",
+            "Solo el marcado con ★"
         });
         _cmbPrioridadAuto.SelectedIndex = IndicePrioridadGuardada();
         _cmbPrioridadAuto.SelectedIndexChanged += (_, _) =>
@@ -208,22 +259,68 @@ public sealed partial class VentanaDoble
             AplicarPrioridadAutomatica();
         };
 
-        op.Controls.Add(_chkVeloz);
-        op.Controls.Add(_chkVerificar);
-        op.Controls.Add(new Label { Text = "Ordenar:", AutoSize = true, ForeColor = _tema.Tinta2, Padding = new Padding(6, 6, 2, 0) });
-        op.Controls.Add(_cmbPrioridadAuto);
-        op.Controls.Add(new Label { Text = "Acción:", AutoSize = true, ForeColor = _tema.Tinta2, Padding = new Padding(6, 6, 2, 0) });
-        op.Controls.Add(_cmbAccion);
-        op.Controls.Add(new Label { Text = "Estructura:", AutoSize = true, ForeColor = _tema.Tinta2, Padding = new Padding(6, 6, 2, 0) });
-        op.Controls.Add(_cmbEstructura);
-        p.Controls.Add(op);
-        return p;
+        t.Controls.Add(new Label
+        {
+            Text = "Estructura:", Dock = DockStyle.Fill, ForeColor = _tema.Tinta2,
+            TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(0),
+            Font = new Font("Segoe UI", 8.25f)
+        }, 0, 0);
+        t.Controls.Add(_cmbEstructura, 1, 0);
+        t.Controls.Add(new Label
+        {
+            Text = "Prioridad:", Dock = DockStyle.Fill, ForeColor = _tema.Tinta2,
+            TextAlign = ContentAlignment.MiddleRight, Margin = new Padding(0, 0, 4, 0),
+            Font = new Font("Segoe UI", 8.25f)
+        }, 2, 0);
+        t.Controls.Add(_cmbPrioridadAuto, 3, 0);
+        return t;
     }
 
-    /// <summary>Barra del precio por GB: casilla + caja + el total, en verde.</summary>
+    private Control BarraCopiar()
+    {
+        var t = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill, BackColor = Color.Transparent,
+            ColumnCount = 3, RowCount = 1, Margin = new Padding(0), Padding = new Padding(0)
+        };
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 23));
+        t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+        t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        _btnCopiar = new BotonRedondo(_tema)
+        {
+            Text = "COPIAR A LOS DISCOS MARCADOS", Dock = DockStyle.Fill, Height = 34,
+            Primario = true, Font = new Font("Segoe UI", 8.75f, FontStyle.Bold),
+            Margin = new Padding(0, 2, 6, 2), Radio = 3
+        };
+        _btnCopiar.Click += async (_, _) => await LanzarCopia();
+        t.Controls.Add(_btnCopiar, 0, 0);
+
+        var bPausaTodo = new BotonRedondo(_tema) { Text = "Pausar / seguir", Dock = DockStyle.Fill, Margin = new Padding(0, 2, 6, 2), Radio = 3, Font = new Font("Segoe UI", 8.25f) };
+        bPausaTodo.Click += (_, _) => AlternarPausaTodos();
+        t.Controls.Add(bPausaTodo, 1, 0);
+
+        var bLimpia = new BotonRedondo(_tema) { Text = "Limpiar hechos", Dock = DockStyle.Fill, Margin = new Padding(0, 2, 0, 2), Radio = 3, Font = new Font("Segoe UI", 8.25f) };
+        bLimpia.Click += (_, _) => _trabajos.LimpiarTerminados();
+        t.Controls.Add(bLimpia, 2, 0);
+        return t;
+    }
+
+    /// <summary>Barra del precio por GB: etiqueta, caja, casilla y el total en verde.</summary>
     private Control BarraPrecio()
     {
         var p = new Panel { Dock = DockStyle.Fill, BackColor = _tema.PanelDiscos };
+
+        // El orden de los Dock=Left se pinta al reves de como se anaden: el ultimo
+        // queda mas a la izquierda. Se anaden en el orden inverso al que se ve.
+        _lblPrecioTotal = new Label
+        {
+            Dock = DockStyle.Fill, ForeColor = _tema.Hecho,
+            Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0)
+        };
+        p.Controls.Add(_lblPrecioTotal);
 
         _chkPrecio = new CheckBox
         {
@@ -239,12 +336,6 @@ public sealed partial class VentanaDoble
         };
         p.Controls.Add(_chkPrecio);
 
-        p.Controls.Add(new Label
-        {
-            Text = "$ /GB:", Dock = DockStyle.Left, Width = 52,
-            ForeColor = _tema.Tinta2, TextAlign = ContentAlignment.MiddleLeft
-        });
-
         _txtPrecioPorGb = new TextBox
         {
             Dock = DockStyle.Left, Width = 70, Text = "0.50", TextAlign = HorizontalAlignment.Right,
@@ -254,13 +345,11 @@ public sealed partial class VentanaDoble
         _txtPrecioPorGb.Leave += (_, _) => GuardarAjustes();
         p.Controls.Add(_txtPrecioPorGb);
 
-        _lblPrecioTotal = new Label
+        p.Controls.Add(new Label
         {
-            Dock = DockStyle.Fill, ForeColor = _tema.Hecho,
-            Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0)
-        };
-        p.Controls.Add(_lblPrecioTotal);
+            Text = "$ /GB:", Dock = DockStyle.Left, Width = 52,
+            ForeColor = _tema.Tinta2, TextAlign = ContentAlignment.MiddleLeft
+        });
         return p;
     }
 
@@ -305,8 +394,11 @@ public sealed partial class VentanaDoble
         var fila = new PanelRedondo(_tema)
         {
             Width = AnchoFila(), Height = 56,
-            BackColor = _tema.Panel, Margin = new Padding(0, 0, 0, 7), Tag = u,
-            Padding = new Padding(10, 4, 8, 4), Radio = 11, ConSombra = true
+            // Sin caja: la fila se apoya directamente en el fondo con el degradado
+            // y el icono de marca de agua, como en la captura.
+            BackColor = Color.Transparent,
+            Margin = new Padding(0), Tag = u,
+            Padding = new Padding(0, 3, 8, 3), Radio = 0, ConSombra = false, ConBorde = false
         };
         fila.Paint += (_, e) => PintarFilaDisco(e.Graphics, fila, u);
         fila.Cursor = Cursors.Hand;
@@ -316,7 +408,7 @@ public sealed partial class VentanaDoble
         var acciones = new FlowLayoutPanel
         {
             Dock = DockStyle.Right, Width = 118, FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false, BackColor = Color.Transparent, Padding = new Padding(0, 12, 0, 0)
+            WrapContents = false, BackColor = Color.Transparent, Padding = new Padding(0, 14, 0, 0)
         };
 
         var bPrio = BotonIcono(Icono.Prioridad, "Prioridad: este disco va primero");
@@ -329,14 +421,22 @@ public sealed partial class VentanaDoble
         acciones.Controls.Add(bPausa);
         acciones.Controls.Add(bCancel);
         fila.Controls.Add(acciones);
+        EngancharSoltar(acciones, r => SoltarEnDiscos(r, u));
 
-        // doble clic entra en el disco; un clic marca/desmarca como destino
+        // doble clic entra en el disco (navegador interno); un clic marca/desmarca como destino.
+        // Un doble clic dispara un solo Click, asi que se deshace el cambio antes de abrir.
         fila.Click += (_, _) => AlternarDestino(u);
-        fila.DoubleClick += (_, _) => AbrirDisco(u);
+        fila.DoubleClick += (_, _) => { AlternarDestino(u); AbrirNavegador(u); };
+
+        // Arrastrar y soltar justo encima de ESTA fila: se anade el origen y el disco
+        // queda marcado como destino. Los hijos no heredan el drop, asi que se engancha
+        // tambien el panel de botones de la derecha.
+        EngancharSoltar(fila, r => SoltarEnDiscos(r, u));
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("Usar como destino", null, (_, _) => AnadirDestino(u));
         menu.Items.Add("Quitar como destino", null, (_, _) => { _destinos.Remove(u.Root); PintarDestinos(); });
+        menu.Items.Add("Examinar este disco (aquí dentro)", null, (_, _) => AbrirNavegador(u));
         menu.Items.Add("Abrir en el explorador", null, (_, _) => AbrirDisco(u));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Marcar prioridad (va primero)", null, (_, _) => { PrioridadDisco(u); RefrescarBotones(fila, u); });
@@ -350,9 +450,9 @@ public sealed partial class VentanaDoble
     {
         var b = new BotonRedondo(_tema)
         {
-            Width = 32, Height = 30, Radio = 8,
-            Image = Iconos.Bitmap(icono, 17, _tema.Tinta, _tema.AcentoSuave),
-            Margin = new Padding(3, 0, 0, 0)
+            Width = 28, Height = 28, Radio = 4, SobreDiscos = true,
+            Image = Iconos.Bitmap(icono, 16, _tema.Tinta, _tema.AcentoSuave),
+            Margin = new Padding(2, 0, 0, 0)
         };
         new ToolTip().SetToolTip(b, ayuda);
         return b;
@@ -363,8 +463,8 @@ public sealed partial class VentanaDoble
     {
         var b = new BotonRedondo(_tema)
         {
-            Width = 33, Height = 26, Radio = 7, Margin = new Padding(3, 0, 0, 0),
-            Image = Iconos.Bitmap(icono, 16, _tema.Tinta, _tema.AcentoSuave)
+            Width = 30, Height = 26, Radio = 4, SobreDiscos = true,
+            Image = Iconos.Bitmap(icono, 15, _tema.Tinta, _tema.AcentoSuave)
         };
         b.Click += (_, _) => { try { accion(); } catch { } };
         new ToolTip().SetToolTip(b, ayuda);
@@ -394,8 +494,9 @@ public sealed partial class VentanaDoble
         var fila = new PanelRedondo(_tema)
         {
             Width = AnchoFila(), Height = 42,
-            BackColor = _tema.Panel, Margin = new Padding(0, 0, 0, 7), Padding = new Padding(10, 4, 8, 4),
-            Radio = 10
+            BackColor = Color.FromArgb(212, Mezclar(_tema.PanelDiscos, Color.White, 0.10f)),
+            Margin = new Padding(0, 0, 0, 6), Padding = new Padding(10, 4, 8, 4),
+            Radio = 8, ConBorde = true
         };
         fila.Controls.Add(new Label
         {
@@ -415,39 +516,50 @@ public sealed partial class VentanaDoble
             string.Equals(t.Destino.Raiz, u.Root, StringComparison.OrdinalIgnoreCase));
         var elegido = _destinos.Contains(u.Root);
 
-        var fondo = fila.BackColor;
-        if (trabajo is { Estado: TrabajoEstado.Copiando }) fondo = Mezclar(fila.BackColor, _tema.Copiando, 0.12f);
-        else if (trabajo is { Estado: TrabajoEstado.Pausado }) fondo = Mezclar(fila.BackColor, _tema.Pausado, 0.12f);
-        else if (elegido) fondo = Mezclar(fila.BackColor, _tema.Acento, 0.12f);
-
-        var cajaFila = new Rectangle(1, 1, fila.Width - 2, fila.Height - 2);
-        using (var camino = Estilo.Redondo(cajaFila, 10))
+        // --- SIN caja: solo un velo suave cuando esta marcado o trabajando ---
+        if (elegido || trabajo != null)
         {
-            using (var b = new SolidBrush(fondo)) g.FillPath(b, camino);
-            using var pl = new Pen(elegido ? _tema.Acento : _tema.Linea, elegido && _lineas ? 1.6f : 1f);
-            g.DrawPath(pl, camino);
+            var velo = trabajo is { Estado: TrabajoEstado.Copiando } ? _tema.Copiando
+                : trabajo is { Estado: TrabajoEstado.Pausado } ? _tema.Pausado
+                : trabajo is { Estado: TrabajoEstado.Error } ? _tema.Error
+                : _tema.Acento;
+            using var b = new SolidBrush(Color.FromArgb(elegido ? 26 : 18, velo));
+            g.FillRectangle(b, new Rectangle(0, 1, fila.Width - 8, fila.Height - 3));
         }
+
+        // barra de seleccion, vertical, a la izquierda (verde como la captura)
+        var colorBarra = trabajo?.Estado switch
+        {
+            TrabajoEstado.Copiando => _tema.Copiando,
+            TrabajoEstado.Pausado => _tema.Pausado,
+            TrabajoEstado.Error => _tema.Error,
+            TrabajoEstado.Hecho => _tema.Hecho,
+            _ => _tema.Hecho
+        };
+        if (elegido || trabajo != null)
+            using (var barra = new SolidBrush(colorBarra))
+                g.FillRectangle(barra, 2, 8, 3, fila.Height - 18);
 
         var colorEstado = trabajo == null ? _tema.Tenue : ColorEstado(trabajo.Estado);
 
         // --- icono del disco, como en la captura ---
         var lateral = Math.Clamp(_tamIcono, 16, 40);
-        var cajaIcono = new Rectangle(10, (fila.Height - lateral) / 2 - 2, lateral, lateral);
+        var cajaIcono = new Rectangle(14, (fila.Height - lateral) / 2 - 2, lateral, lateral);
         Iconos.Dibujar(g, Iconos.ParaDispositivo(u), cajaIcono,
-            elegido ? _tema.Acento : _tema.Tinta, _tema.AcentoSuave);
+            elegido ? _tema.Hecho : _tema.Tinta, _tema.AcentoSuave);
 
-        var x = 44;
+        var x = 48;
         var limiteDerecho = fila.Width - 124; // deja sitio a los botones de la fila
         if (limiteDerecho < x + 100) limiteDerecho = fila.Width - 10;
 
         // --- linea 1: nombre + sistema + letra (segun las opciones) ---
-        var titulo = u.Label is { Length: > 0 } l ? l : (u.Name is { Length: > 0 } n ? n : "Disco local");
+        var titulo = !string.IsNullOrWhiteSpace(u.Label) ? u.Label : "Disco local";
         var linea1 = titulo;
         if (_colSistema && !string.IsNullOrWhiteSpace(u.FileSystem)) linea1 += "  " + u.FileSystem;
-        if (_colLetra) linea1 += $"  ({u.DriveLetter ?? u.KindLabel})";
+        if (_colLetra) linea1 += $"  ({(u.DriveLetter ?? u.KindLabel).TrimEnd('\\')})";
         using (var fuente = new Font("Segoe UI", 9.5f, FontStyle.Bold))
         using (var tinta = new SolidBrush(elegido ? _tema.Acento : _tema.Tinta))
-            g.DrawString(linea1, fuente, tinta, x, 4);
+            g.DrawString(linea1, fuente, tinta, x, 3);
 
         // --- linea 2: capacidad · velocidad · tiempo restante ---
         var uso = $"{Human.Size(u.UsedSpace)} de {Human.Size(u.Capacity)}";
@@ -464,8 +576,8 @@ public sealed partial class VentanaDoble
             extra = u.Bus;
 
         using (var fuente = new Font("Segoe UI", 8.3f))
-        using (var tinta = new SolidBrush(_tema.Tinta2))
-            g.DrawString(_colLibre ? $"{uso}   ·   {extra}" : extra, fuente, tinta, x, 22);
+        using (var tinta = new SolidBrush(trabajo != null ? colorEstado : _tema.Tinta2))
+            g.DrawString(_colLibre ? $"{uso}   ·   {extra}" : extra, fuente, tinta, x, 21);
 
         // --- precio de ESTE disco, en verde, arriba a la derecha ---
         if (PrecioPorGb > 0 && trabajo != null && trabajo.BytesHechos > 0)
@@ -475,28 +587,32 @@ public sealed partial class VentanaDoble
             using var tintaPrecio = new SolidBrush(_tema.Hecho);
             var anchoPrecio = g.MeasureString(Dinero(importe), fuentePrecio).Width;
             var px = limiteDerecho - anchoPrecio;
-            if (px > x) g.DrawString(Dinero(importe), fuentePrecio, tintaPrecio, px, 4);
+            if (px > x) g.DrawString(Dinero(importe), fuentePrecio, tintaPrecio, px, 3);
         }
 
         // --- barra fina de progreso abajo ---
         var barraX = x;
-        var barraY = fila.Height - 11;
+        var barraY = fila.Height - 14;
         var barraW = limiteDerecho - barraX - 44;
         if (barraW > 30)
         {
             var pct = trabajo?.Percent ?? (u.Capacity > 0 ? u.UsedPercent : 0);
-            using (var fondoBarra = new SolidBrush(Estilo.Mezcla(fila.BackColor, Color.Black, _tema.Oscuro ? 0.35f : 0.10f)))
-                g.FillRectangle(fondoBarra, barraX, barraY, barraW, 5);
+            using (var fondoBarra = new SolidBrush(Color.FromArgb(120, Color.Black)))
+                g.FillRectangle(fondoBarra, barraX, barraY, barraW, 4);
 
             var anchoRelleno = (int)(barraW * Math.Clamp(pct, 0, 100) / 100.0);
             if (anchoRelleno > 0)
                 using (var relleno = new SolidBrush(trabajo != null ? colorEstado : _tema.Acento))
-                    g.FillRectangle(relleno, barraX, barraY, anchoRelleno, 5);
+                    g.FillRectangle(relleno, barraX, barraY, anchoRelleno, 4);
 
             using (var fuente = new Font("Segoe UI", 7.8f, FontStyle.Bold))
             using (var tinta = new SolidBrush(trabajo != null ? colorEstado : _tema.Tinta2))
-                g.DrawString($"{pct:0}%", fuente, tinta, barraX + barraW + 6, barraY - 4);
+                g.DrawString($"{pct:0}%", fuente, tinta, barraX + barraW + 6, barraY - 5);
         }
+
+        // --- separador fino, de borde a borde, en vez de caja ---
+        using (var pluma = new Pen(Color.FromArgb(56, _tema.Tinta), 1f))
+            g.DrawLine(pluma, 2, fila.Height - 2, fila.Width - 10, fila.Height - 2);
 
         // check si termino bien
         if (trabajo is { Estado: TrabajoEstado.Hecho, Errores: 0 })
@@ -572,19 +688,23 @@ public sealed partial class VentanaDoble
             chip.Controls.Add(new Label { Text = Path.GetFileName(o.TrimEnd('\\')), AutoSize = true, ForeColor = _tema.Tinta, Location = new Point(8, 5) });
             var quitar = new Button { Text = "×", Width = 18, Height = 18, FlatStyle = FlatStyle.Flat, ForeColor = _tema.Error, Location = new Point(chip.Width - 20, 4), Anchor = AnchorStyles.Top | AnchorStyles.Right };
             var capturado = o;
-            quitar.Click += (_, _) => { _origenes.Remove(capturado); PintarOrigenes(); GuardarSesion(true); };
+            quitar.Click += (_, _) => { _origenes.Remove(capturado); _prefijosOrigen.Remove(capturado); PintarOrigenes(); GuardarSesion(true); };
             chip.Controls.Add(quitar);
             _flOrigen.Controls.Add(chip);
         }
         if (_origenes.Count == 0)
-            _flOrigen.Controls.Add(new Label { Text = "  Origen: pulsa «Añadir origen…» o marca carpetas.", ForeColor = _tema.Tenue, AutoSize = true, Padding = new Padding(0, 6, 0, 0) });
+            _flOrigen.Controls.Add(new Label { Text = "  Arrastra archivos o carpetas aquí", ForeColor = _tema.Tenue, AutoSize = true, Padding = new Padding(0, 6, 0, 0) });
     }
 
     private void AnadirOrigenDialogo()
     {
         using var dlg = new FolderBrowserDialog { Description = "Elige la carpeta o disco que quieres copiar", ShowNewFolderButton = false };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
-        if (!_origenes.Contains(dlg.SelectedPath)) _origenes.Add(dlg.SelectedPath);
+        if (!_origenes.Contains(dlg.SelectedPath))
+        {
+            _origenes.Add(dlg.SelectedPath);
+            _prefijosOrigen[dlg.SelectedPath] = NombreDeCarpeta(dlg.SelectedPath);
+        }
         PintarOrigenes();
         GuardarSesion(true);
     }
@@ -593,9 +713,26 @@ public sealed partial class VentanaDoble
     {
         using var dlg = new OpenFileDialog { Multiselect = true, Title = "Elige archivos para copiar" };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
-        foreach (var f in dlg.FileNames) if (!_origenes.Contains(f)) _origenes.Add(f);
+        foreach (var f in dlg.FileNames)
+        {
+            if (_origenes.Contains(f)) continue;
+            _origenes.Add(f);
+            _prefijosOrigen[f] = NombreDeCarpeta(Path.GetDirectoryName(f));
+        }
         PintarOrigenes();
         GuardarSesion(true);
+    }
+
+    /// <summary>Nombre de la carpeta raiz que se conserva al copiar.</summary>
+    private static string NombreDeCarpeta(string? carpeta)
+    {
+        if (string.IsNullOrWhiteSpace(carpeta)) return "";
+        try
+        {
+            var nombre = new DirectoryInfo(carpeta).Name;
+            return string.IsNullOrWhiteSpace(nombre) ? "" : nombre;
+        }
+        catch { return ""; }
     }
 
     private void PrioridadDisco(DeviceInfo u)
@@ -677,11 +814,31 @@ public sealed partial class VentanaDoble
             try
             {
                 var l = await Task.Run(() => motor.Enumerar(o));
+
+                // Se conserva la carpeta raiz tal como se arrastro/elegio:
+                // D:\Series\SerieX\T1\cap1.mkv -> destino\SerieX\T1\cap1.mkv
+                if (_prefijosOrigen.TryGetValue(o, out var prefijo) && !string.IsNullOrWhiteSpace(prefijo))
+                    l = l.Select(f => f.Bajo(prefijo)).ToList();
+
                 ficheros.AddRange(l);
             }
             catch (Exception ex) { Mensaje($"No se pudo leer {o}: {ex.Message}"); }
         }
         if (ficheros.Count == 0) { Mensaje("No hay archivos que copiar en el origen."); return; }
+
+        // Los archivos quitados con Ctrl+clic en el navegador interno no entran.
+        var quitadosFuera = 0;
+        if (_excluidos.Count > 0)
+        {
+            var antes = ficheros.Count;
+            ficheros = ficheros.Where(f => !EstaExcluido(f.FullPath)).ToList();
+            quitadosFuera = antes - ficheros.Count;
+            if (ficheros.Count == 0)
+            {
+                Mensaje("Has quitado todos los archivos de la copia. Pulsa «Restaurar» en el navegador para devolverlos.");
+                return;
+            }
+        }
 
         // --- comprobaciones antes de lanzar: nada de fallos silenciosos ---
         var validos = new List<string>();
@@ -706,11 +863,13 @@ public sealed partial class VentanaDoble
 
         if (validos.Count == 0)
         {
-            Mensaje("Ningún disco de destino sirve: " + string.Join("; ", avisos));
+            Mensaje("Ningún disco de destino sirve:\n\n" + string.Join("\n", avisos)
+                    + "\n\nAbre el disco con doble clic y quita archivos con Ctrl+clic para que quepa.");
             return;
         }
         if (avisos.Count > 0)
-            Mensaje("Se omite(n) " + avisos.Count + " disco(s): " + string.Join("; ", avisos));
+            Mensaje("Se omite(n) " + avisos.Count + " disco(s):\n\n" + string.Join("\n", avisos)
+                    + "\n\nPuedes abrir el disco con doble clic y quitar archivos con Ctrl+clic.");
 
         var destinos = validos.Select(d => new Destino
         {
@@ -723,7 +882,8 @@ public sealed partial class VentanaDoble
         _trabajos.Verificar = _chkVerificar.Checked;
         AplicarPrioridadAutomatica();
         _trabajos.Enviar(ficheros, destinos);
-        Mensaje($"Copia lanzada a {destinos.Count} disco(s), a la vez. Cada uno a su velocidad.");
+        Mensaje($"Copia lanzada a {destinos.Count} disco(s), a la vez. Cada uno a su velocidad."
+                + (quitadosFuera > 0 ? $"\n({quitadosFuera} archivo/s quedaron fuera por tu selección.)" : ""));
     }
 
     /// <summary>¿Queda algo copiando, en cola o pausado?</summary>

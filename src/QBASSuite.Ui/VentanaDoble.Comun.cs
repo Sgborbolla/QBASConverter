@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using QBASSuite.Engine;
 using QBASSuite.Util;
@@ -75,7 +76,7 @@ public sealed partial class VentanaDoble
             Poner("carpetaFija", _txtCarpetaFija?.Text ?? "");
             Poner("mantenerEstructura", _chkEstructura?.Checked ?? false);
             Poner("borrarOriginal", _chkBorrarOriginal?.Checked ?? false);
-            Poner("gpu", _chkGpu?.Checked ?? true);
+            Poner("motor", _cmbMotor?.SelectedIndex ?? 0);
             Poner("precioActivo", _chkPrecio?.Checked ?? false);
             Poner("precioPorGb", _txtPrecioPorGb?.Text ?? "0.50");
 
@@ -104,7 +105,9 @@ public sealed partial class VentanaDoble
                 estructura = _cmbEstructura?.SelectedIndex ?? 4,
                 modo = _cmbAccion?.SelectedIndex ?? 0,
                 verificar = _chkVerificar?.Checked ?? false,
-                veloz = _chkVeloz?.Checked ?? true
+                veloz = _chkVeloz?.Checked ?? true,
+                // Carpeta raiz que hay que conservar en el destino de cada origen.
+                prefijos = _prefijosOrigen
             }, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(FicheroTrabajo, json);
         }
@@ -125,7 +128,7 @@ public sealed partial class VentanaDoble
             var destinos = LeerArray(raiz, "destinos");
             if (origenes.Count == 0 && destinos.Count == 0) return;
 
-            var r = MessageBox.Show(
+            var r = MessageBox.Show(this,
                 $"Hay un trabajo de copia guardado ({origenes.Count} origen/es → {destinos.Count} disco/s).\n\n" +
                 "¿Quieres continuarlo?\n\n" +
                 "· Sí: se vuelve a cargar tal cual estaba.\n" +
@@ -137,6 +140,20 @@ public sealed partial class VentanaDoble
             {
                 foreach (var o in origenes) if (!_origenes.Contains(o)) _origenes.Add(o);
                 foreach (var d in destinos) _destinos.Add(d);
+
+                // Recuperar la carpeta raiz de cada origen (o deducirla).
+                _prefijosOrigen.Clear();
+                if (raiz.TryGetProperty("prefijos", out var prefs) && prefs.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var p in prefs.EnumerateObject())
+                        if (p.Value.ValueKind == JsonValueKind.String)
+                            _prefijosOrigen[p.Name] = p.Value.GetString() ?? "";
+                }
+                foreach (var o in origenes)
+                    if (!_prefijosOrigen.ContainsKey(o))
+                        _prefijosOrigen[o] = Directory.Exists(o)
+                            ? NombreDeCarpeta(o)
+                            : NombreDeCarpeta(Path.GetDirectoryName(o));
                 if (raiz.TryGetProperty("estructura", out var e) && e.TryGetInt32(out var ie) && _cmbEstructura != null)
                     _cmbEstructura.SelectedIndex = Math.Clamp(ie, 0, _cmbEstructura.Items.Count - 1);
                 if (raiz.TryGetProperty("modo", out var m) && m.TryGetInt32(out var im) && _cmbAccion != null)
@@ -298,7 +315,88 @@ public sealed partial class VentanaDoble
         PintarOrigenes();
         PintarDiscos();
         RefrescarPrecio();
+        TemaBarraTitulo();
         Invalidate(true);
+    }
+
+    // =====================================================================
+    //  Barra de titulo oscura (la de Windows), como en la captura
+    // =====================================================================
+
+    [DllImport("dwmapi.dll", PreserveSig = true)]
+    private static extern int DwmSetWindowAttribute(IntPtr ventana, int atributo, ref int valor, int tamano);
+
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetWindowTheme(IntPtr ventana, string? subApp, string? subIdList);
+
+    /// <summary>Pone la barra de desplazamiento nativa en oscuro. Sin esto, el panel
+    /// de discos saca una barra blanca que rompe el tema.</summary>
+    internal static void TemaOscuroBarra(IntPtr ventana)
+    {
+        try { SetWindowTheme(ventana, "DarkMode_Explorer", null); } catch { }
+    }
+
+    private const int DwmModoOscuro = 20;       // Windows 10 2004 y posteriores
+    private const int DwmModoOscuroViejo = 19;  // Windows 10 anterior
+    private const int DwmColorBarra = 35;       // Windows 11
+    private const int DwmColorTexto = 36;       // Windows 11
+
+    /// <summary>Pinta la barra de titulo de Windows en oscuro y del color del panel.</summary>
+    private void TemaBarraTitulo()
+    {
+        if (!OscuroParaWindows()) return;
+        try
+        {
+            var h = Handle;
+            int oscuro = _tema.Oscuro ? 1 : 0;
+            if (DwmSetWindowAttribute(h, DwmModoOscuro, ref oscuro, sizeof(int)) != 0)
+                DwmSetWindowAttribute(h, DwmModoOscuroViejo, ref oscuro, sizeof(int));
+
+            int color = ColorTranslator.ToWin32(_tema.Panel);
+            DwmSetWindowAttribute(h, DwmColorBarra, ref color, sizeof(int));
+
+            int texto = ColorTranslator.ToWin32(_tema.Tinta);
+            DwmSetWindowAttribute(h, DwmColorTexto, ref texto, sizeof(int));
+        }
+        catch { }
+    }
+
+    [DllImport("ntdll.dll", PreserveSig = true)]
+    private static extern int RtlGetVersion(ref VersionInfo version);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct VersionInfo
+    {
+        public int Tamano;
+        public int Mayor;
+        public int Menor;
+        public int Compilacion;
+        public int Plataforma;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string Texto;
+    }
+
+    private static bool _esWindows10O17;
+    private static bool _versionComprobada;
+
+    /// <summary>DWM existe desde Windows 10 1809; en versiones anteriores se ignora.</summary>
+    private static bool OscuroParaWindows()
+    {
+        if (_versionComprobada) return _esWindows10O17;
+        _versionComprobada = true;
+        try
+        {
+            var v = new VersionInfo { Tamano = Marshal.SizeOf<VersionInfo>(), Texto = "" };
+            if (RtlGetVersion(ref v) == 0)
+                _esWindows10O17 = v.Mayor > 10 || (v.Mayor == 10 && v.Compilacion >= 17763);
+        }
+        catch { }
+        return _esWindows10O17;
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        TemaBarraTitulo();
     }
 
     private void AplicarTemaRecursivo(Control c)
@@ -313,8 +411,19 @@ public sealed partial class VentanaDoble
                     break;
                 case PanelRedondo pr:
                     pr.Tema = _tema;
-                    pr.BackColor = _tema.Panel;
+                    if (pr.Tag is QBASSuite.Devices.DeviceInfo)
+                    {
+                        // Filas de disco: SIN caja, transparentes sobre el fondo con
+                        // la marca de agua (como en la captura). El estado se pinta
+                        // en PintarFilaDisco, no aqui.
+                        pr.BackColor = Color.Transparent;
+                        pr.ConBorde = false;
+                    }
+                    else pr.BackColor = _tema.Panel;
                     pr.Invalidate();
+                    break;
+                case PanelFoto pf:
+                    pf.Invalidate();
                     break;
                 case Button b:
                     b.FlatStyle = FlatStyle.Flat;
@@ -325,12 +434,19 @@ public sealed partial class VentanaDoble
                 case ListView lv:
                     lv.BackColor = lv.Tag as string == "discos" ? _tema.PanelDiscos : _tema.Panel2;
                     lv.ForeColor = _tema.Tinta;
+                    if (lv is ListaOscura lo)
+                    {
+                        lo.Tema = _tema;
+                        lo.FondoFilas = lv.BackColor;
+                        lv.Invalidate();
+                    }
                     break;
                 case TextBox tb:
                     tb.BackColor = _tema.Panel2;
                     tb.ForeColor = _tema.Tinta;
                     break;
                 case ComboBox cb:
+                    cb.FlatStyle = FlatStyle.Flat;
                     cb.BackColor = _tema.Panel2;
                     cb.ForeColor = _tema.Tinta;
                     break;
@@ -338,13 +454,60 @@ public sealed partial class VentanaDoble
                     chk.ForeColor = _tema.Tinta;
                     chk.BackColor = Color.Transparent;
                     break;
-                case Label l when l.ForeColor == Color.Empty:
-                    l.ForeColor = _tema.Tinta;
+                case RadioButton rb:
+                    rb.ForeColor = _tema.Tinta;
+                    rb.BackColor = Color.Transparent;
+                    break;
+                case LinkLabel ll:
+                    if (EsTintaOscura(ll.ForeColor)) ll.ForeColor = _tema.Acento;
+                    ll.LinkColor = _tema.Acento;
+                    break;
+                case Label l:
+                    // ANTES se miraba "ForeColor == Color.Empty", pero WinForms
+                    // NUNCA devuelve Empty: devuelve el negro por defecto de
+                    // Windows. Por eso media ventana se quedaba con texto negro
+                    // sobre fondo oscuro, es decir, sin texto visible.
+                    if (EsTintaOscura(l.ForeColor)) l.ForeColor = _tema.Tinta;
+                    break;
+                case ListBox lb:
+                    lb.BackColor = _tema.Panel2;
+                    lb.ForeColor = _tema.Tinta;
+                    break;
+                case NumericUpDown nu:
+                    nu.BackColor = _tema.Panel2;
+                    nu.ForeColor = _tema.Tinta;
+                    break;
+                case GroupBox gb:
+                    gb.ForeColor = _tema.Tinta;
                     break;
             }
+
+            // Cualquier panel que se haya quedado con el gris de fabrica de
+            // Windows tambien se pinta con el color del tema.
+            if (hijo is Panel or TableLayoutPanel or FlowLayoutPanel
+                && hijo is not PanelRedondo and not PanelFoto
+                && hijo is not PanelMarcaAgua and not PanelLogo
+                && EsFondoDeFabrica(hijo.BackColor))
+            {
+                hijo.BackColor = _tema.Panel;
+            }
+
             AplicarTemaRecursivo(hijo);
         }
     }
+
+    /// <summary>Negro de texto de Windows, que en un tema oscuro no se veria.</summary>
+    private static bool EsTintaOscura(Color c)
+    {
+        if (c.A == 0) return true;
+        if (c.ToArgb() == SystemColors.ControlText.ToArgb()) return true;
+        return c.R < 45 && c.G < 45 && c.B < 45;
+    }
+
+    /// <summary>Gris o blanco de fabrica de Windows (control, ventana).</summary>
+    private static bool EsFondoDeFabrica(Color c)
+        => c.A != 0 && (c.ToArgb() == SystemColors.Control.ToArgb()
+                     || c.ToArgb() == SystemColors.Window.ToArgb());
 
     // =====================================================================
     //  Utilidad
@@ -352,6 +515,12 @@ public sealed partial class VentanaDoble
 
     private void Mensaje(string texto)
     {
-        if (_lblMensaje != null) _lblMensaje.Text = "  " + texto;
+        // En la barra de abajo cabe una linea: si el aviso es largo o trae varias,
+        // se enseña tambien en una ventana para que no se pierda nada.
+        if (_lblMensaje != null)
+            _lblMensaje.Text = "  " + texto.Replace("\r", " ").Replace("\n", "   ");
+        if (texto.Contains('\n'))
+            MessageBox.Show(this, texto, "QBASFreemanCopy-Converter",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 }

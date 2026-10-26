@@ -45,6 +45,11 @@ public sealed class ConversionRequest
     /// <summary>Replicar la forma de las subcarpetas dentro de la carpeta de salida.</summary>
     public bool MantenerEstructura { get; set; }
 
+    /// <summary>Subcarpeta que se pone delante de cada archivo, conservando la
+    /// carpeta raiz tal como se arrastro (clave = ruta completa del archivo).
+    /// Ej.: D:\Series\SerieX\T1\cap1.mkv -> "SerieX\T1".</summary>
+    public Dictionary<string, string> Subcarpetas { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Si el resultado ya existe: saltar, sobrescribir o renombrar.</summary>
     public SalidaConflicto Conflicto { get; set; } = SalidaConflicto.Saltar;
 
@@ -300,17 +305,29 @@ public sealed class ConversionEngine
                 break;
         }
 
-        // Replicar la forma de las subcarpetas (solo tiene sentido si hay subcarpeta o carpeta fija).
-        if (req.MantenerEstructura && req.Salida != SalidaModo.MismaCarpetaDelOriginal)
+        // Replicar la forma de las subcarpetas. Solo hace falta cuando todo va a
+        // UNA carpeta fija: al guardar junto al original (o en una subcarpeta suya)
+        // la estructura ya se conserva sola y repetirla anidaria SerieX\T1 dos veces.
+        if (req.MantenerEstructura && req.Salida == SalidaModo.CarpetaFija)
         {
-            var raiz = Path.GetPathRoot(entrada) ?? "";
-            var rel = Path.GetRelativePath(raiz, carpetaOriginal);
-            if (!rel.StartsWith("..") && rel != ".")
+            // 1) si el archivo vino de algo arrastrado, se conserva EXACTAMENTE la
+            //    carpeta raiz que se solto (SerieX\T1\...), no la ruta del disco.
+            if (req.Subcarpetas.TryGetValue(entrada, out var relativa)
+                && !string.IsNullOrWhiteSpace(relativa))
             {
-                // quita la primera carpeta (la del disco) para no anidar de mas
-                var partes = rel.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
-                if (partes.Length > 1)
-                    dir = Path.Combine(dir, Path.Combine(partes.Skip(1).ToArray()));
+                dir = Path.Combine(dir, relativa);
+            }
+            else
+            {
+                var raiz = Path.GetPathRoot(entrada) ?? "";
+                var rel = Path.GetRelativePath(raiz, carpetaOriginal);
+                if (!rel.StartsWith("..") && rel != ".")
+                {
+                    // quita la primera carpeta (la del disco) para no anidar de mas
+                    var partes = rel.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+                    if (partes.Length > 1)
+                        dir = Path.Combine(dir, Path.Combine(partes.Skip(1).ToArray()));
+                }
             }
         }
 

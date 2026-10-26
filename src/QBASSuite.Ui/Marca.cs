@@ -72,13 +72,14 @@ internal static class Marca
 /// <summary>Control pequeno que muestra una de las dos imagenes de la marca.</summary>
 internal sealed class PanelFoto : Control
 {
-    private readonly Tema _tema;
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public Tema Tema { get; set; }
 
     private readonly string _archivo;
 
     public PanelFoto(Tema tema, string archivo)
     {
-        _tema = tema;
+        Tema = tema;
         _archivo = archivo;
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer
                  | ControlStyles.UserPaint | ControlStyles.ResizeRedraw
@@ -88,10 +89,10 @@ internal sealed class PanelFoto : Control
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        e.Graphics.Clear(Parent?.BackColor ?? _tema.Panel);
+        e.Graphics.Clear(Parent?.BackColor ?? Tema.Panel);
         var lado = Math.Min(Width, Height) - 2;
         if (lado < 4) return;
         var caja = new Rectangle((Width - lado) / 2, (Height - lado) / 2, lado, lado);
-        Marca.Dibujar(e.Graphics, Marca.Imagen(_archivo), caja, Math.Max(4, lado / 4), true, _tema);
+        Marca.Dibujar(e.Graphics, Marca.Imagen(_archivo), caja, Math.Max(4, lado / 4), true, Tema);
     }
 }

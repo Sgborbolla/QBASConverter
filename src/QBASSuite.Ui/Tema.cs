@@ -57,16 +57,17 @@ public sealed class Tema
     /// <summary>Los temas. El primero es el de por defecto.</summary>
     public static IReadOnlyList<Tema> Todos { get; } = new List<Tema>
     {
-        // 0) Estilo pantalla: fondo oscuro y acento azul, como la captura. Es el de por defecto.
+        // 0) Estilo pantalla: gris carbon plano a la izquierda y verde petroleo
+        //    a la derecha, con acento azul. Es el de por defecto.
         new()
         {
             Nombre = "Estilo pantalla",
-            Fondo = De("#101418"), Panel = De("#161c22"), Panel2 = De("#1d252d"), Linea = De("#2b3742"),
-            Tinta = De("#eef3f7"), Tinta2 = De("#b9c6d2"), Tenue = De("#7d8b98"),
-            Acento = De("#2196F3"), AcentoSuave = De("#173046"), SobreAcento = Color.White,
-            Copiando = De("#2196F3"), Verificado = De("#2ECC71"), Pausado = De("#F5B041"),
-            Error = De("#E74C3C"), Hecho = De("#27AE60"), EnCola = De("#5D6D7E"), Prioridad = De("#E74C3C"),
-            PanelDiscos = De("#0d3b3a"), Oscuro = true,
+            Fondo = De("#1b1b1b"), Panel = De("#232323"), Panel2 = De("#2d2d2d"), Linea = De("#3a3a3a"),
+            Tinta = De("#f5f5f5"), Tinta2 = De("#c7c7c7"), Tenue = De("#8e8e8e"),
+            Acento = De("#2196F3"), AcentoSuave = De("#14324a"), SobreAcento = Color.White,
+            Copiando = De("#2196F3"), Verificado = De("#43d17a"), Pausado = De("#F5B041"),
+            Error = De("#E74C3C"), Hecho = De("#2ECC71"), EnCola = De("#6b7c8a"), Prioridad = De("#E74C3C"),
+            PanelDiscos = De("#223a41"), Oscuro = true,
             Forma = FormaTema.Engranaje, Glifo = "Q"
         },
 

@@ -54,8 +54,7 @@ public sealed partial class VentanaDoble : Form
     private PanelLogo? _logo;
 
     public VentanaDoble(Icon? icono = null)
-    {
-        Text = "QBASFreemanCopy-Converter  ·  Convertidor + Multicopiador";
+    {        Text = "QBASFreemanCopy-Converter  ·  Convertidor + Multicopiador";
         StartPosition = FormStartPosition.CenterScreen;
         // Ventana pequena y recogida, como la captura: no se abre a pantalla completa.
         WindowState = FormWindowState.Normal;
@@ -84,7 +83,6 @@ public sealed partial class VentanaDoble : Form
             IniciarAutosave();
             EngancharTrabajos();
             RefrescarPrecio();
-            ReanudarSiHayTrabajo();
         };
         FormClosing += (_, _) =>
         {
@@ -159,7 +157,18 @@ public sealed partial class VentanaDoble : Form
         // La distancia se fija cuando la ventana ya tiene ancho de verdad. Si se pone
         // aqui, el control aun mide 0 y SplitContainer lanza una excepcion y se cierra.
         // NO se hace en cada Resize: eso hacia parpadear toda la ventana.
-        Shown += (_, _) => FijarReparto();
+        Shown += (_, _) =>
+        {
+            FijarReparto();
+            // Los avisos de "continuar trabajo" se preguntan con la ventana YA
+            // visible y como mucho uno detras de otro. Antes se preguntaban durante
+            // la carga y el segundo salia detras de la ventana: parecia congelado.
+            BeginInvoke(() =>
+            {
+                ReanudarSiHayConversion();
+                ReanudarSiHayTrabajo();
+            });
+        };
 
         raiz.Controls.Add(BarraInferior(), 0, 2);
         Controls.Add(raiz);
@@ -175,6 +184,9 @@ public sealed partial class VentanaDoble : Form
         // y la ventana se queda en negro.
         raiz.ResumeLayout(true);
         raiz.PerformLayout();
+
+        // Arrastrar y soltar archivos/carpetas sobre cualquiera de las dos mitades.
+        ActivarArrastrar();
     }
 
     private Panel BarraSuperior()
@@ -184,15 +196,15 @@ public sealed partial class VentanaDoble : Form
         var textos = new Panel { Dock = DockStyle.Fill, BackColor = _tema.Panel, Padding = new Padding(6, 2, 8, 2) };
         var titulo = new Label
         {
-            Text = "QBASFreemanCopy-Converter", Dock = DockStyle.Top, Height = 28,
-            Font = new Font("Segoe UI", 13.5f, FontStyle.Bold),
+            Text = "QBASFreemanCopy-Converter", Dock = DockStyle.Top, Height = 24,
+            Font = new Font("Segoe UI", 12f, FontStyle.Bold),
             ForeColor = _tema.Acento, TextAlign = ContentAlignment.MiddleLeft,
             AutoEllipsis = true
         };
         var subtitulo = new Label
         {
             Text = "Nativo de Windows  ·  sin puertos  ·  sin licencias",
-            Dock = DockStyle.Top, Height = 18, Font = new Font("Segoe UI", 8.75f),
+            Dock = DockStyle.Top, Height = 16, Font = new Font("Segoe UI", 8f),
             ForeColor = _tema.Tinta2, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
         textos.Controls.Add(subtitulo);
