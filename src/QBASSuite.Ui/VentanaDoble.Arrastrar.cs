@@ -37,26 +37,18 @@ public sealed partial class VentanaDoble
         }
     }
 
-    /// <summary>Accion de soltar segun donde caiga: izquierda convierte, derecha copia
-    /// y, si es una fila de disco, ademas ese disco queda como destino.</summary>
+    /// <summary>Accion de soltar segun donde caiga: izquierda convierte y derecha copia.
+    /// Solo si se suelta sobre una fila de disco, ese disco queda ademas como destino.</summary>
     private Action<string[]> SoltarSegunSitio(Control c) => rutas =>
     {
         if (EstaEnLaIzquierda(c)) { SoltarEnConvertidor(rutas); return; }
-        var unidad = UnidadDeControl(c) ?? (EstaDentroDe(c, _vistaNav) ? _navDisco : null);
-        SoltarEnDiscos(rutas, unidad);
+        SoltarEnDiscos(rutas, UnidadDeControl(c));
     };
 
     private bool EstaEnLaIzquierda(Control c)
     {
         for (var p = c; p != null; p = p.Parent)
             if (p == _partidor.Panel1) return true;
-        return false;
-    }
-
-    private static bool EstaDentroDe(Control c, Control contenedor)
-    {
-        for (var p = c; p != null; p = p.Parent)
-            if (p == contenedor) return true;
         return false;
     }
 
@@ -83,7 +75,13 @@ public sealed partial class VentanaDoble
             {
                 Pista("");
                 var rutas = RutasDe(e);
-                if (rutas is { Length: > 0 }) alSoltar(rutas);
+                if (rutas is not { Length: > 0 }) return;
+
+                // Soltar puede repintar la lista y destruir este mismo control. Si se
+                // hiciera ahora, se quedaria a medias dentro del arrastre: se aplaza
+                // al siguiente mensaje de la ventana, cuando el drop ya termino.
+                try { destino.BeginInvoke((Action)(() => alSoltar(rutas))); }
+                catch { alSoltar(rutas); }
             };
         }
         catch { }
