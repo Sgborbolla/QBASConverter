@@ -107,7 +107,9 @@ public sealed partial class VentanaDoble
                 verificar = _chkVerificar?.Checked ?? false,
                 veloz = _chkVeloz?.Checked ?? true,
                 // Carpeta raiz que hay que conservar en el destino de cada origen.
-                prefijos = _prefijosOrigen
+                prefijos = _prefijosOrigen,
+                // Archivos quitados con Ctrl+clic en el navegador interno.
+                excluidos = _excluidos.ToArray()
             }, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(FicheroTrabajo, json);
         }
@@ -154,12 +156,18 @@ public sealed partial class VentanaDoble
                         _prefijosOrigen[o] = Directory.Exists(o)
                             ? NombreDeCarpeta(o)
                             : NombreDeCarpeta(Path.GetDirectoryName(o));
+
+                // Lo que se habia quitado con Ctrl+clic sigue fuera de la copia.
+                _excluidos.Clear();
+                foreach (var x in LeerArray(raiz, "excluidos")) _excluidos.Add(x);
                 if (raiz.TryGetProperty("estructura", out var e) && e.TryGetInt32(out var ie) && _cmbEstructura != null)
                     _cmbEstructura.SelectedIndex = Math.Clamp(ie, 0, _cmbEstructura.Items.Count - 1);
                 if (raiz.TryGetProperty("modo", out var m) && m.TryGetInt32(out var im) && _cmbAccion != null)
                     _cmbAccion.SelectedIndex = Math.Clamp(im, 0, _cmbAccion.Items.Count - 1);
                 if (raiz.TryGetProperty("verificar", out var v) && v.ValueKind == JsonValueKind.True && _chkVerificar != null)
                     _chkVerificar.Checked = true;
+                if (raiz.TryGetProperty("veloz", out var vz) && _chkVeloz != null)
+                    _chkVeloz.Checked = vz.ValueKind == JsonValueKind.True;
                 PintarOrigenes();
                 PintarDiscos();
             }

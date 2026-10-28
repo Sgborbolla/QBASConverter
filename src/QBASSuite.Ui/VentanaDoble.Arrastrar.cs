@@ -18,40 +18,63 @@ public sealed partial class VentanaDoble
     /// <summary>Se llama al final de Construir(), cuando ya existen los paneles.</summary>
     private void ActivarArrastrar()
     {
-        // ---- izquierda: cola de conversion ----
-        EngancharSoltar(_lstConv, SoltarEnConvertidor);
-        if (_lstConv?.Parent != null) EngancharSoltar(_lstConv.Parent, SoltarEnConvertidor);
-        foreach (var c in Contenedores(_partidor.Panel1)) EngancharSoltar(c, SoltarEnConvertidor);
-
-        // ---- derecha: origenes de la copia ----
-        EngancharSoltar(_flOrigen, r => SoltarEnDiscos(r, null));
-        EngancharSoltar(_panelDiscos, r => SoltarEnDiscos(r, null));
-        EngancharSoltar(_fondoDiscos, r => SoltarEnDiscos(r, null));
-        EngancharSoltar(_vistaNav, r => SoltarEnDiscos(r, null));
-        EngancharSoltar(_navLista, r => SoltarEnDiscos(r, null));
+        // La ventana entera acepta archivos: se decide por la mitad donde se suelta.
+        EngancharArbol(this);
     }
 
-    /// <summary>Todos los paneles y etiquetas de un contenedor (para que se pueda
-    /// soltar tambien encima de un titulo o de un hueco vacio).</summary>
-    private static IEnumerable<Control> Contenedores(Control raiz)
+    /// <summary>Recorre todos los controles y deja cada uno listo para recibir archivos.
+    /// Un control que ya lo estaba (las filas de disco, que marcan el destino) no se
+    /// vuelve a enganchar.</summary>
+    private void EngancharArbol(Control raiz)
     {
-        foreach (Control hijo in raiz.Controls)
+        foreach (Control c in raiz.Controls)
         {
-            if (hijo is Panel or TableLayoutPanel or FlowLayoutPanel or Label or GroupBox
-                or PictureBox or PanelRedondo or PanelMarcaAgua)
-            {
-                yield return hijo;
-                foreach (var nieto in Contenedores(hijo)) yield return nieto;
-            }
+            // En las cajas de texto el arrastre se usa para mover texto: no se toca.
+            if (c is not TextBoxBase)
+                EngancharSoltar(c, SoltarSegunSitio(c));
+
+            EngancharArbol(c);
         }
     }
 
-    /// <summary>Deja un control listo para recibir archivos arrastrados.</summary>
+    /// <summary>Accion de soltar segun donde caiga: izquierda convierte, derecha copia
+    /// y, si es una fila de disco, ademas ese disco queda como destino.</summary>
+    private Action<string[]> SoltarSegunSitio(Control c) => rutas =>
+    {
+        if (EstaEnLaIzquierda(c)) { SoltarEnConvertidor(rutas); return; }
+        var unidad = UnidadDeControl(c) ?? (EstaDentroDe(c, _vistaNav) ? _navDisco : null);
+        SoltarEnDiscos(rutas, unidad);
+    };
+
+    private bool EstaEnLaIzquierda(Control c)
+    {
+        for (var p = c; p != null; p = p.Parent)
+            if (p == _partidor.Panel1) return true;
+        return false;
+    }
+
+    private static bool EstaDentroDe(Control c, Control contenedor)
+    {
+        for (var p = c; p != null; p = p.Parent)
+            if (p == contenedor) return true;
+        return false;
+    }
+
+    /// <summary>Disco al que pertenece un control (la fila o cualquiera de sus hijos).</summary>
+    private static DeviceInfo? UnidadDeControl(Control c)
+    {
+        for (var p = c; p != null; p = p.Parent)
+            if (p.Tag is DeviceInfo u) return u;
+        return null;
+    }
+
+    /// <summary>Deja un control listo para recibir archivos arrastrados (una sola vez).</summary>
     private void EngancharSoltar(Control? destino, Action<string[]> alSoltar)
     {
         if (destino == null) return;
         try
         {
+            if (destino.AllowDrop) return;   // ya estaba enganchado (filas de disco)
             destino.AllowDrop = true;
             destino.DragEnter += (_, e) => AceptarArrastre(e, "Suelta para añadirlo");
             destino.DragOver += (_, e) => AceptarArrastre(e, "Suelta para añadirlo");
@@ -87,6 +110,46 @@ public sealed partial class VentanaDoble
         }
         catch { }
         return null;
+    }
+
+    /// <summary>Empieza a arrastrar rutas DESDE el programa (navegador interno, lista
+    /// de origenes o cola de conversion). Asi se pueden llevar al convertidor o al
+    /// Explorador sin salir de la ventana.</summary>
+    private static void ArrastrarRutas(Control desde, IEnumerable<string?> rutas)
+    {
+        var lista = rutas.Where(r => !string.IsNullOrWhiteSpace(r))
+                         .Select(r => r!)
+                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                         .ToArray();
+        if (lista.Length == 0) return;
+        var datos = new DataObject();
+        datos.SetData(DataFormats.FileDrop, lista);
+        desde.DoDragDrop(datos, DragDropEffects.Copy);
+    }
+
+    /// <summary>Permite arrastrar un control que representa una ruta (por ejemplo el
+    /// chip de un origen). Solo empieza el arrastre cuando el raton se mueve de
+    /// verdad, para no estorbar al clic normal ni al boton de quitar.</summary>
+    private void PonerArrastre(Control control, string ruta)
+    {
+        var inicio = Point.Empty;
+        var pulsado = false;
+
+        control.MouseDown += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left) return;
+            pulsado = true;
+            inicio = e.Location;
+        };
+        control.MouseUp += (_, _) => pulsado = false;
+        control.MouseMove += (_, e) =>
+        {
+            if (!pulsado || e.Button != MouseButtons.Left) return;
+            if (Math.Abs(e.X - inicio.X) < SystemInformation.DragSize.Width &&
+                Math.Abs(e.Y - inicio.Y) < SystemInformation.DragSize.Height) return;
+            pulsado = false;
+            ArrastrarRutas(control, new[] { ruta });
+        };
     }
 
     /// <summary>Mensaje corto en la barra de abajo mientras se arrastra.</summary>

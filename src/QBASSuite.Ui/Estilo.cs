@@ -376,6 +376,7 @@ internal sealed class PanelDesliz : FlowLayoutPanel
 {
     private readonly Tema _tema;
     private bool _arrastrando;
+    private bool _ocultando;
 
     [DllImport("user32.dll")]
     private static extern bool ShowScrollBar(IntPtr ventana, int barra, bool mostrar);
@@ -413,7 +414,14 @@ internal sealed class PanelDesliz : FlowLayoutPanel
 
     private void OcultarBarraNativa()
     {
-        try { if (IsHandleCreated) ShowScrollBar(Handle, SbVert, false); } catch { }
+        if (_ocultando) return;
+        try
+        {
+            _ocultando = true;
+            if (IsHandleCreated) ShowScrollBar(Handle, SbVert, false);
+        }
+        catch { }
+        finally { _ocultando = false; }
     }
 
     /// <summary>Zona (en pixeles) donde se puede agarrar la barra.</summary>

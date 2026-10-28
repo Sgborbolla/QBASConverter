@@ -421,17 +421,15 @@ public sealed partial class VentanaDoble
         acciones.Controls.Add(bPausa);
         acciones.Controls.Add(bCancel);
         fila.Controls.Add(acciones);
-        EngancharSoltar(acciones, r => SoltarEnDiscos(r, u));
 
         // doble clic entra en el disco (navegador interno); un clic marca/desmarca como destino.
         // Un doble clic dispara un solo Click, asi que se deshace el cambio antes de abrir.
         fila.Click += (_, _) => AlternarDestino(u);
         fila.DoubleClick += (_, _) => { AlternarDestino(u); AbrirNavegador(u); };
 
-        // Arrastrar y soltar justo encima de ESTA fila: se anade el origen y el disco
-        // queda marcado como destino. Los hijos no heredan el drop, asi que se engancha
-        // tambien el panel de botones de la derecha.
-        EngancharSoltar(fila, r => SoltarEnDiscos(r, u));
+        // Arrastrar y soltar en toda la fila (y sus botones): se anade el origen y
+        // el disco queda marcado como destino. El disco se saca del Tag de la fila.
+        EngancharArbol(fila);
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("Usar como destino", null, (_, _) => AnadirDestino(u));
@@ -685,11 +683,17 @@ public sealed partial class VentanaDoble
                 AutoSize = true, BackColor = _tema.AcentoSuave, Margin = new Padding(0, 2, 4, 2),
                 Padding = new Padding(8, 2, 22, 2), MinimumSize = new Size(60, 26)
             };
-            chip.Controls.Add(new Label { Text = Path.GetFileName(o.TrimEnd('\\')), AutoSize = true, ForeColor = _tema.Tinta, Location = new Point(8, 5) });
+            var etiqueta = new Label { Text = Path.GetFileName(o.TrimEnd('\\')), AutoSize = true, ForeColor = _tema.Tinta, Location = new Point(8, 5) };
+            chip.Controls.Add(etiqueta);
             var quitar = new Button { Text = "×", Width = 18, Height = 18, FlatStyle = FlatStyle.Flat, ForeColor = _tema.Error, Location = new Point(chip.Width - 20, 4), Anchor = AnchorStyles.Top | AnchorStyles.Right };
             var capturado = o;
             quitar.Click += (_, _) => { _origenes.Remove(capturado); _prefijosOrigen.Remove(capturado); PintarOrigenes(); GuardarSesion(true); };
             chip.Controls.Add(quitar);
+
+            // El chip tambien se puede arrastrar (al convertidor o al Explorador).
+            PonerArrastre(chip, capturado);
+            PonerArrastre(etiqueta, capturado);
+
             _flOrigen.Controls.Add(chip);
         }
         if (_origenes.Count == 0)
@@ -843,6 +847,7 @@ public sealed partial class VentanaDoble
         // --- comprobaciones antes de lanzar: nada de fallos silenciosos ---
         var validos = new List<string>();
         var avisos = new List<string>();
+        var necesario = ficheros.Sum(f => f.Length);
         foreach (var d in _destinos)
         {
             var info = UnidadDe(d);
@@ -852,10 +857,11 @@ public sealed partial class VentanaDoble
                 continue;
             }
             var libre = info?.FreeSpace ?? 0;
-            var necesario = ficheros.Sum(f => f.Length);
-            if (libre > 0 && necesario > libre)
+            // Si no se pudo leer el espacio (info nulo) se deja intentar; si se
+            // pudo leer y es 0, tambien hay que avisar: el disco esta lleno.
+            if (info != null && necesario > libre)
             {
-                avisos.Add($"{info?.Display ?? d}: faltan {Human.Size(necesario - libre)}");
+                avisos.Add($"{info.Display}: faltan {Human.Size(necesario - libre)}");
                 continue;
             }
             validos.Add(d);

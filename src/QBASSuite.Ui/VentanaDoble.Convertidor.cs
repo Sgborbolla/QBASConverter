@@ -307,6 +307,13 @@ public sealed partial class VentanaDoble
             _lstConv.Columns[0].Width = ancho;
         };
         _lstConv.KeyDown += (_, e) => { if (e.KeyCode == Keys.Delete) QuitarConvSeleccion(); };
+        // Arrastrar lo marcado de la cola al multicopiador (o al Explorador).
+        _lstConv.ItemDrag += (_, _) =>
+        {
+            var rutas = _lstConv.SelectedItems.Cast<ListViewItem>()
+                .Select(x => x.Tag as string).ToList();
+            ArrastrarRutas(_lstConv, rutas);
+        };
         tra.Controls.Add(_lstConv);
 
         _lblConvEstado = new Label { Dock = DockStyle.Bottom, Height = 20, ForeColor = _tema.Tinta2, Text = "Sin trabajos." };
@@ -354,7 +361,13 @@ public sealed partial class VentanaDoble
         var bQuitar = new BotonRedondo(_tema) { Width = 28, Height = 38, Radio = 3, Image = Iconos.Bitmap(Icono.Quitar, 14, _tema.Tinta, _tema.AcentoSuave) };
         bQuitar.Click += (_, _) => QuitarConvSeleccion();
         var bLimpiar = new BotonRedondo(_tema) { Width = 28, Height = 38, Radio = 3, Image = Iconos.Bitmap(Icono.Papelera, 14, _tema.Tinta, _tema.AcentoSuave) };
-        bLimpiar.Click += (_, _) => { _lstConv.Items.Clear(); _prefijosConv.Clear(); ActualizarEstadoConv(); };
+        bLimpiar.Click += (_, _) =>
+        {
+            _lstConv.Items.Clear();
+            _prefijosConv.Clear();
+            ActualizarEstadoConv();
+            GuardarSesionConversion(true);   // si no, al abrir volveria la cola vieja
+        };
         acciones.Controls.Add(bDetener);
         acciones.Controls.Add(bQuitar);
         acciones.Controls.Add(bLimpiar);

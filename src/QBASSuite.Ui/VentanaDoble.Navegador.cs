@@ -19,6 +19,9 @@ public sealed partial class VentanaDoble
     private Label _navTitulo = null!, _navCapacidad = null!, _navRuta = null!, _navPie = null!;
     private DeviceInfo? _navDisco;
     private string _navRutaActual = "";
+    /// <summary>Numero de navegacion: si se piden dos carpetas seguidas, solo la
+    /// ultima puede rellenar la lista (antes ganaba la que terminase despues).</summary>
+    private int _navVersion;
     private ImageList _navIconos = null!;
     private Panel _navIconoDisco = null!;
 
@@ -136,6 +139,14 @@ public sealed partial class VentanaDoble
             if (_navLista.Columns.Count == 2) _navLista.Columns[0].Width = ancho;
         };
         _navLista.DoubleClick += (_, _) => AbrirElementoNav();
+        // Arrastrar lo marcado (Ctrl+clic) fuera del navegador: al convertidor,
+        // a los origenes de la copia o incluso al Explorador.
+        _navLista.ItemDrag += (_, _) =>
+        {
+            var rutas = _navLista.SelectedItems.Cast<ListViewItem>()
+                .Select(x => x.Tag as string).ToList();
+            ArrastrarRutas(_navLista, rutas);
+        };
         _navLista.KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.Back) { SubirCarpeta(); e.Handled = true; }
@@ -241,6 +252,7 @@ public sealed partial class VentanaDoble
     private async Task NavegarA(string ruta)
     {
         if (_navDisco == null) return;
+        var version = ++_navVersion;
         _navRutaActual = ruta;
         _navRuta.Text = ruta;
         _navPie.Text = "Leyendo…";
@@ -267,7 +279,7 @@ public sealed partial class VentanaDoble
                 .ToList();
         });
 
-        if (IsDisposed || _navDisco == null) return;
+        if (IsDisposed || _navDisco == null || version != _navVersion) return;
         _navLista.BeginUpdate();
         foreach (var e in elementos)
         {
@@ -371,6 +383,7 @@ public sealed partial class VentanaDoble
         var cuantos = _excluidos.Count;
         _excluidos.Clear();
         MarcarExcluidos();
+        GuardarSesion(true);
         _navPie.Text = cuantos > 0
             ? $"Vuelven {cuantos} archivo/s a la copia."
             : "No había nada quitado.";
