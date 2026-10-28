@@ -359,7 +359,10 @@ public sealed partial class VentanaDoble
                 origenes = _origenes.ToArray(),
                 prefijos = _prefijosOrigen,
                 modos = _modoPorOrigen.ToDictionary(k => k.Key, v => (int)v.Value),
-                estructura = _cmbEstructura?.SelectedIndex ?? 4
+                estructura = _cmbEstructura?.SelectedIndex ?? 4,
+                accion = _cmbAccion?.SelectedIndex ?? 0,
+                verificar = _chkVerificar?.Checked ?? false,
+                veloz = _chkVeloz?.Checked ?? true
             }, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(dlg.FileName, json);
             Mensaje($"Lista salvada en {Path.GetFileName(dlg.FileName)} ({_origenes.Count} origen/es).");
@@ -408,6 +411,13 @@ public sealed partial class VentanaDoble
 
             if (raiz.TryGetProperty("estructura", out var e) && e.TryGetInt32(out var ie) && _cmbEstructura != null)
                 _cmbEstructura.SelectedIndex = Math.Clamp(ie, 0, _cmbEstructura.Items.Count - 1);
+
+            if (raiz.TryGetProperty("accion", out var a) && a.TryGetInt32(out var ia) && _cmbAccion != null)
+                _cmbAccion.SelectedIndex = Math.Clamp(ia, 0, _cmbAccion.Items.Count - 1);
+            if (_chkVerificar != null && raiz.TryGetProperty("verificar", out var v))
+                _chkVerificar.Checked = v.ValueKind == JsonValueKind.True;
+            if (_chkVeloz != null && raiz.TryGetProperty("veloz", out var vz))
+                _chkVeloz.Checked = vz.ValueKind == JsonValueKind.True;
 
             PintarOrigenes();
             GuardarSesion(true);

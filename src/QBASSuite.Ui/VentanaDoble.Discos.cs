@@ -786,7 +786,15 @@ public sealed partial class VentanaDoble
         if (string.IsNullOrWhiteSpace(carpeta)) return "";
         try
         {
-            var nombre = new DirectoryInfo(carpeta).Name;
+            // Si es la raiz de un disco (D:\), no se mete carpeta: el nombre de la
+            // raiz no sirve como carpeta de destino.
+            var completo = Path.GetFullPath(carpeta);
+            var raiz = Path.GetPathRoot(completo);
+            if (!string.IsNullOrEmpty(raiz) &&
+                string.Equals(completo.TrimEnd('\\', '/'), raiz.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
+                return "";
+
+            var nombre = new DirectoryInfo(completo).Name;
             return string.IsNullOrWhiteSpace(nombre) ? "" : nombre;
         }
         catch { return ""; }
