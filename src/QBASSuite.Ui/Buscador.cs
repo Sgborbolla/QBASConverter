@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using QBASSuite.Util;
 
 namespace QBASSuite.Ui;
@@ -396,31 +396,40 @@ public sealed class Buscador : Form
         _cts = new CancellationTokenSource();
         Bloquear(true);
 
-        var progreso = new Progress<string>(texto => _lblEstado.Text = "  " + texto);
+        var progreso = new Progress<string>(texto =>
+        {
+            if (!IsDisposed) _lblEstado.Text = "  " + texto;
+        });
+
         try
         {
+            var token = _cts.Token;
             await Task.Run(() =>
             {
                 foreach (var r in raices)
                 {
-                    _cts.Token.ThrowIfCancellationRequested();
-                    var lista = ConstruirIndice(r, _cts.Token, n =>
+                    token.ThrowIfCancellationRequested();
+                    var lista = ConstruirIndice(r, token, n =>
                         ((IProgress<string>)progreso).Report($"Indexando {r}… {n:N0} archivos"));
                     Indice[r] = lista;
                 }
                 GuardarIndice();
-            }, _cts.Token);
+            }, token);
 
+            if (IsDisposed) return;
             _lblEstado.Text = $"  Índice listo: {Indice.Count} raíz(es), {Indice.Values.Sum(v => v.Count):N0} archivos.";
         }
-        catch (OperationCanceledException) { _lblEstado.Text = "  Indexado detenido."; }
-        catch (Exception ex) { _lblEstado.Text = "  No se pudo indexar: " + ex.Message; }
+        catch (OperationCanceledException) { if (!IsDisposed) _lblEstado.Text = "  Indexado detenido."; }
+        catch (Exception ex) { if (!IsDisposed) _lblEstado.Text = "  No se pudo indexar: " + ex.Message; }
         finally
         {
-            _cts.Dispose();
+            _cts?.Dispose();
             _cts = null;
-            Bloquear(false);
-            GuardarRaices();
+            if (!IsDisposed)
+            {
+                Bloquear(false);
+                GuardarRaices();
+            }
         }
     }
 
@@ -446,29 +455,35 @@ public sealed class Buscador : Form
         Bloquear(true);
         _lblEstado.Text = "  Buscando…";
 
-        var progreso = new Progress<string>(texto => _lblEstado.Text = "  " + texto);
+        var progreso = new Progress<string>(texto =>
+        {
+            if (!IsDisposed) _lblEstado.Text = "  " + texto;
+        });
+
         try
         {
+            var token = _cts.Token;
             var encontrados = await Task.Run(() =>
             {
                 var salida = new List<EntradaIndice>();
 
                 foreach (var r in raices)
                 {
-                    _cts.Token.ThrowIfCancellationRequested();
+                    token.ThrowIfCancellationRequested();
 
                     // Si esa raíz ya está indexada, se usa al instante.
                     if (!Indice.TryGetValue(r, out var entradas))
                     {
-                        entradas = ConstruirIndice(r, _cts.Token, n =>
+                        var leidas = ConstruirIndice(r, token, n =>
                             ((IProgress<string>)progreso).Report($"Preparando el índice de {r}… {n:N0} archivos"));
-                        Indice[r] = entradas;
+                        entradas = leidas;
+                        Indice[r] = leidas;
                         GuardarIndice();
                     }
 
                     foreach (var e in entradas)
                     {
-                        _cts.Token.ThrowIfCancellationRequested();
+                        token.ThrowIfCancellationRequested();
                         var nombre = Path.GetFileName(e.Ruta);
                         var casa = patrones.Length > 0
                             ? Matcher.LikeAny(nombre, patrones)
@@ -488,21 +503,25 @@ public sealed class Buscador : Form
                 }
 
                 return salida;
-            }, _cts.Token);
+            }, token);
 
+            if (IsDisposed) return;
             Rellenar(encontrados);
             _lblEstado.Text = encontrados.Count == 0
                 ? "  No se encontró nada con ese nombre."
                 : $"  {encontrados.Count:N0} archivo(s). Marca los que quieras y pulsa «Añadir a la copia».";
         }
-        catch (OperationCanceledException) { _lblEstado.Text = "  Búsqueda detenida."; }
-        catch (Exception ex) { _lblEstado.Text = "  No se pudo buscar: " + ex.Message; }
+        catch (OperationCanceledException) { if (!IsDisposed) _lblEstado.Text = "  Búsqueda detenida."; }
+        catch (Exception ex) { if (!IsDisposed) _lblEstado.Text = "  No se pudo buscar: " + ex.Message; }
         finally
         {
-            _cts.Dispose();
+            _cts?.Dispose();
             _cts = null;
-            Bloquear(false);
-            GuardarRaices();
+            if (!IsDisposed)
+            {
+                Bloquear(false);
+                GuardarRaices();
+            }
         }
     }
 
@@ -528,14 +547,12 @@ public sealed class Buscador : Form
     private void Bloquear(bool trabajando)
     {
         _btnBuscar.Enabled = !trabajando;
-        IndexarHabilitado(!trabajando);
+        _btnIndexar.Enabled = !trabajando;
         _btnDetener.Enabled = trabajando;
         _btnAnadir.Enabled = !trabajando;
         _raices.Enabled = !trabajando;
         _txtPatron.Enabled = !trabajando;
     }
-
-    private void IndexarHabilitado(bool activo) => _btnIndexar.Enabled = activo;
 
     // =====================================================================
     //  Llevar lo marcado a la copia
