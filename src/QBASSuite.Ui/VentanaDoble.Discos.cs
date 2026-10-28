@@ -430,6 +430,8 @@ public sealed partial class VentanaDoble
         // Arrastrar y soltar en toda la fila (y sus botones): se anade el origen y
         // el disco queda marcado como destino. El disco se saca del Tag de la fila.
         EngancharArbol(fila);
+        // Arrastrar la fila hacia el convertidor (multicopiador -> convertidor).
+        PonerArrastre(fila, u.Root);
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("Usar como destino", null, (_, _) => AnadirDestino(u));

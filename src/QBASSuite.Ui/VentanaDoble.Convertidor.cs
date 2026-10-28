@@ -307,13 +307,6 @@ public sealed partial class VentanaDoble
             _lstConv.Columns[0].Width = ancho;
         };
         _lstConv.KeyDown += (_, e) => { if (e.KeyCode == Keys.Delete) QuitarConvSeleccion(); };
-        // Arrastrar lo marcado de la cola al multicopiador (o al Explorador).
-        _lstConv.ItemDrag += (_, _) =>
-        {
-            var rutas = _lstConv.SelectedItems.Cast<ListViewItem>()
-                .Select(x => x.Tag as string).ToList();
-            ArrastrarRutas(_lstConv, rutas);
-        };
         tra.Controls.Add(_lstConv);
 
         _lblConvEstado = new Label { Dock = DockStyle.Bottom, Height = 20, ForeColor = _tema.Tinta2, Text = "Sin trabajos." };

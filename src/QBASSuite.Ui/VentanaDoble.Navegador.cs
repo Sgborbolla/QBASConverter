@@ -139,6 +139,27 @@ public sealed partial class VentanaDoble
             if (_navLista.Columns.Count == 2) _navLista.Columns[0].Width = ancho;
         };
         _navLista.DoubleClick += (_, _) => AbrirElementoNav();
+        // Ctrl+clic sobre un archivo o carpeta de la lista: se quita de la copia
+        // al instante (queda tachado). Si el raton se mueve, es un arrastre y no
+        // se quita nada: asi Ctrl+arrastrar sigue sirviendo para llevar archivos.
+        var puntoCtrl = Point.Empty;
+        var ctrlPulsado = false;
+        _navLista.MouseDown += (_, e) =>
+        {
+            ctrlPulsado = e.Button == MouseButtons.Left && (ModifierKeys & Keys.Control) != 0;
+            puntoCtrl = e.Location;
+        };
+        _navLista.MouseUp += (_, e) =>
+        {
+            if (!ctrlPulsado) return;
+            ctrlPulsado = false;
+            if (Math.Abs(e.X - puntoCtrl.X) >= SystemInformation.DragSize.Width ||
+                Math.Abs(e.Y - puntoCtrl.Y) >= SystemInformation.DragSize.Height) return;
+            var it = _navLista.GetItemAt(e.X, e.Y);
+            if (it?.Tag is not string ruta) return;
+            // Se aplaza: primero el control termina de procesar el clic.
+            BeginInvoke(() => QuitarRutasDeLaCopia(new[] { ruta }));
+        };
         // Arrastrar lo marcado (Ctrl+clic) fuera del navegador: al convertidor,
         // a los origenes de la copia o incluso al Explorador.
         _navLista.ItemDrag += (_, _) =>
@@ -188,7 +209,7 @@ public sealed partial class VentanaDoble
             Text = "Quitar de la copia", Dock = DockStyle.Fill, Radio = 3, SobreDiscos = true,
             Font = new Font("Segoe UI", 8.25f), Margin = new Padding(0, 3, 0, 3)
         };
-        new ToolTip().SetToolTip(quitar, "Quita los archivos marcados (Ctrl para varios) de la cola de copia");
+        new ToolTip().SetToolTip(quitar, "Quita lo marcado. También puedes hacer Ctrl+clic en un archivo para quitarlo al instante");
         quitar.Click += (_, _) => QuitarSeleccionDeLaCopia();
         pie.Controls.Add(quitar, 2, 0);
         t.Controls.Add(pie, 0, 3);
@@ -334,17 +355,27 @@ public sealed partial class VentanaDoble
     {
         if (_navLista.SelectedItems.Count == 0)
         {
-            _navPie.Text = "Marca uno o varios archivos (Ctrl+clic) y vuelve a pulsar.";
+            _navPie.Text = "Selecciona uno o varios archivos y vuelve a pulsar; o Ctrl+clic para quitarlos al instante.";
             return;
         }
 
+        var rutas = _navLista.SelectedItems.Cast<ListViewItem>()
+            .Select(x => x.Tag as string)
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Select(x => x!)
+            .ToList();
+        QuitarRutasDeLaCopia(rutas);
+    }
+
+    /// <summary>Quita de la copia las rutas indicadas: si son origenes salen de la
+    /// lista; si estan dentro de una carpeta de origen, se excluyen del copiado.</summary>
+    private void QuitarRutasDeLaCopia(IEnumerable<string> rutas)
+    {
         var quitados = 0;   // origenes que se van de la lista
         var fuera = 0;      // archivos dentro de una carpeta que no se copiaran
 
-        foreach (ListViewItem it in _navLista.SelectedItems)
+        foreach (var ruta in rutas)
         {
-            if (it.Tag is not string ruta) continue;
-
             // 1) si lo marcado es justo un origen, sale de la lista
             var antes = _origenes.Count;
             foreach (var o in _origenes.Where(o => string.Equals(o, ruta, StringComparison.OrdinalIgnoreCase)).ToList())
