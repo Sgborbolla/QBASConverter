@@ -39,6 +39,16 @@ public sealed class Tema
     /// <summary>Panel de la lista de discos.</summary>
     public required Color PanelDiscos { get; init; }
 
+    /// <summary>Color de arriba del degradado del panel de discos (si es null, se
+    /// deduce del color base). Es lo que le da el verde-azul de la captura.</summary>
+    public Color? PanelDiscosArriba { get; init; }
+
+    /// <summary>Color de abajo del degradado del panel de discos.</summary>
+    public Color? PanelDiscosAbajo { get; init; }
+
+    /// <summary>Color de los nombres de disco (azul en el tema Xpress).</summary>
+    public Color? NombreDisco { get; init; }
+
     /// <summary>Es un tema oscuro (para saber si hay que aclarar los iconos).</summary>
     public required bool Oscuro { get; init; }
 
@@ -57,8 +67,26 @@ public sealed class Tema
     /// <summary>Los temas. El primero es el de por defecto.</summary>
     public static IReadOnlyList<Tema> Todos { get; } = new List<Tema>
     {
-        // 0) Estilo pantalla: gris carbon plano a la izquierda y verde petroleo
-        //    a la derecha, con acento azul. Es el de por defecto.
+        // 0) XPRESS: el homenaje. Panel de discos con degradado verde-azul, nombres
+        //    de disco en azul, grises de consola a la izquierda y acento azul.
+        //    Es el tema de por defecto.
+        new()
+        {
+            Nombre = "Xpress",
+            Fondo = De("#1e1e1e"), Panel = De("#252526"), Panel2 = De("#2d2d30"), Linea = De("#3f3f46"),
+            Tinta = De("#e9e9e9"), Tinta2 = De("#b8b8b8"), Tenue = De("#8a8a8a"),
+            Acento = De("#3b9dff"), AcentoSuave = De("#17334a"), SobreAcento = Color.White,
+            Copiando = De("#3b9dff"), Verificado = De("#43d17a"), Pausado = De("#f0a832"),
+            Error = De("#e5544b"), Hecho = De("#43d17a"), EnCola = De("#7d8b93"),
+            Prioridad = De("#e5544b"),
+            PanelDiscos = De("#173e3c"), Oscuro = true,
+            PanelDiscosArriba = De("#1e4f4a"), PanelDiscosAbajo = De("#0e1b26"),
+            NombreDisco = De("#4fa3e3"),
+            Forma = FormaTema.Engranaje, Glifo = "X"
+        },
+
+        // 1) Estilo pantalla: gris carbon plano a la izquierda y verde petroleo
+        //    a la derecha, con acento azul.
         new()
         {
             Nombre = "Estilo pantalla",

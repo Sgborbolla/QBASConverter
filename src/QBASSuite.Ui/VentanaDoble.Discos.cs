@@ -27,6 +27,8 @@ public sealed partial class VentanaDoble
     private Button _btnCopiar = null!;
     private CheckBox _chkPrecio = null!;
     private TextBox _txtPrecioPorGb = null!;
+    private ComboBox _cmbCobro = null!;
+    private Label _lblUnidad = null!;
     private Label _lblPrecioTotal = null!;
     private readonly List<string> _origenes = new();
     /// <summary>Carpeta raiz que se conserva en el destino para cada origen
@@ -40,7 +42,7 @@ public sealed partial class VentanaDoble
     {
         var raiz = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7,
+            Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 8,
             BackColor = _tema.PanelDiscos, Padding = new Padding(8)
         };
         raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));   // titulo + iconos
@@ -48,8 +50,9 @@ public sealed partial class VentanaDoble
         raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));   // origenes + añadir
         raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // velocidad / verificar / accion
         raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // estructura / prioridad
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));   // modo de arrastre + acciones
         raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));   // COPIAR + pausa + limpiar
-        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // precio por GB
+        raiz.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));   // cobrar
 
         var cab = new TableLayoutPanel
         {
@@ -119,6 +122,8 @@ public sealed partial class VentanaDoble
             IconoFondo = Marca.Imagen(Marca.Copiador)
         };
         _fondoDiscos = fondo;
+        fondo.GradienteArriba = _tema.PanelDiscosArriba;
+        fondo.GradienteAbajo = _tema.PanelDiscosAbajo;
         fondo.Controls.Add(_panelDiscos);
 
         // El navegador interno vive aqui mismo, encima de la lista de discos:
@@ -132,8 +137,9 @@ public sealed partial class VentanaDoble
         raiz.Controls.Add(BarraOrigenDestino(), 0, 2);
         raiz.Controls.Add(BarraOpcionesUno(), 0, 3);
         raiz.Controls.Add(BarraOpcionesDos(), 0, 4);
-        raiz.Controls.Add(BarraCopiar(), 0, 5);
-        raiz.Controls.Add(BarraPrecio(), 0, 6);
+        raiz.Controls.Add(BarraModos(), 0, 5);
+        raiz.Controls.Add(BarraCopiar(), 0, 6);
+        raiz.Controls.Add(BarraPrecio(), 0, 7);
         return raiz;
     }
 
@@ -307,7 +313,7 @@ public sealed partial class VentanaDoble
         return t;
     }
 
-    /// <summary>Barra del precio por GB: etiqueta, caja, casilla y el total en verde.</summary>
+    /// <summary>Barra del cobro: qué se cobra, el valor y el total en verde.</summary>
     private Control BarraPrecio()
     {
         var p = new Panel { Dock = DockStyle.Fill, BackColor = _tema.PanelDiscos };
@@ -322,34 +328,58 @@ public sealed partial class VentanaDoble
         };
         p.Controls.Add(_lblPrecioTotal);
 
-        _chkPrecio = new CheckBox
-        {
-            Text = "Calcular precio por GB", Dock = DockStyle.Left, Width = 170, AutoSize = false,
-            ForeColor = _tema.Tinta, TextAlign = ContentAlignment.MiddleLeft,
-            FlatStyle = FlatStyle.Flat
-        };
-        _chkPrecio.CheckedChanged += (_, _) =>
-        {
-            _txtPrecioPorGb.Enabled = _chkPrecio.Checked;
-            RefrescarPrecio();
-            GuardarAjustes();
-        };
-        p.Controls.Add(_chkPrecio);
-
         _txtPrecioPorGb = new TextBox
         {
-            Dock = DockStyle.Left, Width = 70, Text = "0.50", TextAlign = HorizontalAlignment.Right,
+            Dock = DockStyle.Left, Width = 58, Text = "0.50", TextAlign = HorizontalAlignment.Right,
             Enabled = false, BorderStyle = BorderStyle.FixedSingle
         };
         _txtPrecioPorGb.TextChanged += (_, _) => { RefrescarPrecio(); };
         _txtPrecioPorGb.Leave += (_, _) => GuardarAjustes();
         p.Controls.Add(_txtPrecioPorGb);
 
-        p.Controls.Add(new Label
+        _lblUnidad = new Label
         {
-            Text = "$ /GB:", Dock = DockStyle.Left, Width = 52,
-            ForeColor = _tema.Tinta2, TextAlign = ContentAlignment.MiddleLeft
-        });
+            Text = "/GB", Dock = DockStyle.Left, Width = 46,
+            ForeColor = _tema.Tinta2, TextAlign = ContentAlignment.MiddleLeft,
+            Font = new Font("Segoe UI", 8.25f)
+        };
+        p.Controls.Add(_lblUnidad);
+
+        _cmbCobro = new ComboBox
+        {
+            Dock = DockStyle.Left, Width = 132, DropDownStyle = ComboBoxStyle.DropDownList,
+            Enabled = false, Font = new Font("Segoe UI", 8.25f)
+        };
+        _cmbCobro.Items.AddRange(new object[] { "Por GB", "Por GB comenzado", "Por duración", "Por carpeta" });
+        _cmbCobro.SelectedIndex = 0;
+        _cmbCobro.SelectedIndexChanged += (_, _) =>
+        {
+            _lblUnidad.Text = _cmbCobro.SelectedIndex switch
+            {
+                2 => "/min",
+                3 => "/carp.",
+                _ => "/GB"
+            };
+            RefrescarPrecio();
+            GuardarAjustes();
+        };
+        p.Controls.Add(_cmbCobro);
+
+        _chkPrecio = new CheckBox
+        {
+            Text = "Cobrar", Dock = DockStyle.Left, Width = 74, AutoSize = false,
+            ForeColor = _tema.Tinta, TextAlign = ContentAlignment.MiddleLeft,
+            FlatStyle = FlatStyle.Flat
+        };
+        _chkPrecio.CheckedChanged += (_, _) =>
+        {
+            _txtPrecioPorGb.Enabled = _chkPrecio.Checked;
+            _cmbCobro.Enabled = _chkPrecio.Checked;
+            RefrescarPrecio();
+            GuardarAjustes();
+        };
+        p.Controls.Add(_chkPrecio);
+
         return p;
     }
 
@@ -425,7 +455,14 @@ public sealed partial class VentanaDoble
         // doble clic entra en el disco (navegador interno); un clic marca/desmarca como destino.
         // Un doble clic dispara un solo Click, asi que se deshace el cambio antes de abrir.
         fila.Click += (_, _) => AlternarDestino(u);
-        fila.DoubleClick += (_, _) => { AlternarDestino(u); AbrirNavegador(u); };
+        // Doble clic: si el disco esta trabajando, enseña su lista de escritura;
+        // si no, entra en el disco con el navegador interno.
+        fila.DoubleClick += (_, _) =>
+        {
+            AlternarDestino(u);
+            if (_trabajos.TrabajoDe(u.Root) != null) AbrirListaEscritura(u);
+            else AbrirNavegador(u);
+        };
 
         // Arrastrar y soltar en toda la fila (y sus botones): se anade el origen y
         // el disco queda marcado como destino. El disco se saca del Tag de la fila.
@@ -438,6 +475,15 @@ public sealed partial class VentanaDoble
         menu.Items.Add("Quitar como destino", null, (_, _) => { _destinos.Remove(u.Root); PintarDestinos(); });
         menu.Items.Add("Examinar este disco (aquí dentro)", null, (_, _) => AbrirNavegador(u));
         menu.Items.Add("Abrir en el explorador", null, (_, _) => AbrirDisco(u));
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Lista de ficheros por escribir", null, (_, _) => AbrirListaEscritura(u));
+        menu.Items.Add("Usar como lector (los demás escriben desde él)", null, (_, _) => UsarLectorDisco(u));
+        menu.Items.Add("Clonar este disco a los demás marcados", null, (_, _) => ClonarDesde(u));
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Extraer (expulsar)", null, (_, _) => { _destinos.Clear(); _destinos.Add(u.Root); ExtraerDiscos(); });
+        menu.Items.Add("Reparar (chkdsk)", null, (_, _) => { _destinos.Clear(); _destinos.Add(u.Root); RepararDiscos(); });
+        menu.Items.Add("Formatear", null, (_, _) => { _destinos.Clear(); _destinos.Add(u.Root); FormatearDiscos(); });
+        menu.Items.Add("Ocultar este disco", null, (_, _) => OcultarDisco(u));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Marcar prioridad (va primero)", null, (_, _) => { PrioridadDisco(u); RefrescarBotones(fila, u); });
         menu.Items.Add("Pausar / continuar", null, (_, _) => { PausaDisco(u); RefrescarBotones(fila, u); });
@@ -558,7 +604,7 @@ public sealed partial class VentanaDoble
         if (_colSistema && !string.IsNullOrWhiteSpace(u.FileSystem)) linea1 += "  " + u.FileSystem;
         if (_colLetra) linea1 += $"  ({(u.DriveLetter ?? u.KindLabel).TrimEnd('\\')})";
         using (var fuente = new Font("Segoe UI", 9.5f, FontStyle.Bold))
-        using (var tinta = new SolidBrush(elegido ? _tema.Acento : _tema.Tinta))
+        using (var tinta = new SolidBrush(elegido ? _tema.Acento : (_tema.NombreDisco ?? _tema.Tinta)))
             g.DrawString(linea1, fuente, tinta, x, 3);
 
         // --- linea 2: capacidad · velocidad · tiempo restante ---
@@ -582,7 +628,7 @@ public sealed partial class VentanaDoble
         // --- precio de ESTE disco, en verde, arriba a la derecha ---
         if (PrecioPorGb > 0 && trabajo != null && trabajo.BytesHechos > 0)
         {
-            var importe = ImporteDisco(trabajo.BytesHechos);
+            var importe = ImporteDisco(trabajo);
             using var fuentePrecio = new Font("Segoe UI", 9.5f, FontStyle.Bold);
             using var tintaPrecio = new SolidBrush(_tema.Hecho);
             var anchoPrecio = g.MeasureString(Dinero(importe), fuentePrecio).Width;
@@ -710,6 +756,7 @@ public sealed partial class VentanaDoble
         {
             _origenes.Add(dlg.SelectedPath);
             _prefijosOrigen[dlg.SelectedPath] = NombreDeCarpeta(dlg.SelectedPath);
+            _modoPorOrigen[dlg.SelectedPath] = _modo;
         }
         PintarOrigenes();
         GuardarSesion(true);
@@ -724,6 +771,7 @@ public sealed partial class VentanaDoble
             if (_origenes.Contains(f)) continue;
             _origenes.Add(f);
             _prefijosOrigen[f] = NombreDeCarpeta(Path.GetDirectoryName(f));
+            _modoPorOrigen[f] = _modo;
         }
         PintarOrigenes();
         GuardarSesion(true);
@@ -789,10 +837,17 @@ public sealed partial class VentanaDoble
     //  Lanzar la copia a todos los discos marcados a la vez
     // =====================================================================
 
-    private async Task LanzarCopia()
+    private async Task LanzarCopia() => await LanzarCopiaPara(null);
+
+    /// <summary>Lanza la copia. Si se pasan destinos, se usan esos (clonar); si no,
+    /// los discos marcados. Aplica el modo de arrastre elegido.</summary>
+    private async Task LanzarCopiaPara(IReadOnlyList<Destino>? destinosFijos)
     {
         if (_origenes.Count == 0) { Mensaje("No has elegido qué copiar (origen)."); return; }
-        if (_destinos.Count == 0) { Mensaje("No has marcado ningún disco de destino (clic en la fila del disco)."); return; }
+        if (destinosFijos == null && _destinos.Count == 0)
+        { Mensaje("No has marcado ningún disco de destino (clic en la fila del disco)."); return; }
+
+        var modo = _modo;
 
         var opciones = new CopyOptions
         {
@@ -807,10 +862,18 @@ public sealed partial class VentanaDoble
                 _ => StructureMode.SoloNombres
             },
             Move = _cmbAccion.SelectedIndex == 1,
-            Mirror = _cmbAccion.SelectedIndex == 2,
+            // Comparar = espejo: el primer disco manda y se borran las diferencias.
+            Mirror = _cmbAccion.SelectedIndex == 2 || modo == ModoArrastre.Comparar,
             Verify = _chkVerificar.Checked,
-            Conflict = _cmbAccion.SelectedIndex == 2 || Opciones.LeerBooleano("forzarCopia", false)
-                ? Conflict.Sobrescribir : Conflict.SaltarSiIgual
+            Conflict = modo switch
+            {
+                // Añadir: lo que ya existe se queda como está.
+                ModoArrastre.Anadir => Conflict.Saltar,
+                // Comparar: se sobrescribe lo distinto y se borra lo que sobra.
+                ModoArrastre.Comparar => Conflict.Sobrescribir,
+                _ => _cmbAccion.SelectedIndex == 2 || Opciones.LeerBooleano("forzarCopia", false)
+                    ? Conflict.Sobrescribir : Conflict.SaltarSiIgual
+            }
         };
         var motor = new CopyEngine(opciones);
 
@@ -825,6 +888,16 @@ public sealed partial class VentanaDoble
                 // D:\Series\SerieX\T1\cap1.mkv -> destino\SerieX\T1\cap1.mkv
                 if (_prefijosOrigen.TryGetValue(o, out var prefijo) && !string.IsNullOrWhiteSpace(prefijo))
                     l = l.Select(f => f.Bajo(prefijo)).ToList();
+
+                // Soltar en modo «solo carpeta» o «solo ficheros» aplana la ruta.
+                // Si el origen se añadió con el botón (no arrastrando), manda el modo actual.
+                var mp = _modoPorOrigen.TryGetValue(o, out var guardado)
+                    ? guardado
+                    : modo is ModoArrastre.SoloCarpeta or ModoArrastre.SoloFicheros
+                        ? modo
+                        : ModoArrastre.Normal;
+                if (mp is ModoArrastre.SoloCarpeta or ModoArrastre.SoloFicheros)
+                    l = l.Select(f => Aplanar(f, mp)).ToList();
 
                 ficheros.AddRange(l);
             }
@@ -847,10 +920,11 @@ public sealed partial class VentanaDoble
         }
 
         // --- comprobaciones antes de lanzar: nada de fallos silenciosos ---
+        var candidatos = destinosFijos?.Select(d => d.Raiz).ToList() ?? _destinos.ToList();
         var validos = new List<string>();
         var avisos = new List<string>();
         var necesario = ficheros.Sum(f => f.Length);
-        foreach (var d in _destinos)
+        foreach (var d in candidatos)
         {
             var info = UnidadDe(d);
             if (!Directory.Exists(d))
@@ -890,8 +964,18 @@ public sealed partial class VentanaDoble
         _trabajos.Verificar = _chkVerificar.Checked;
         AplicarPrioridadAutomatica();
         _trabajos.Enviar(ficheros, destinos);
-        Mensaje($"Copia lanzada a {destinos.Count} disco(s), a la vez. Cada uno a su velocidad."
+
+        var comoModo = modo switch
+        {
+            ModoArrastre.Anadir => " (añadiendo solo lo que falta)",
+            ModoArrastre.Comparar => " (comparando con el primero: se borran diferencias)",
+            _ => ""
+        };
+        Mensaje($"Copia lanzada a {destinos.Count} disco(s), a la vez. Cada uno a su velocidad.{comoModo}"
                 + (quitadosFuera > 0 ? $"\n({quitadosFuera} archivo/s quedaron fuera por tu selección.)" : ""));
+
+        // Los modos valen para una sola vez, como en el original.
+        VolverAModoNormal();
     }
 
     /// <summary>¿Queda algo copiando, en cola o pausado?</summary>

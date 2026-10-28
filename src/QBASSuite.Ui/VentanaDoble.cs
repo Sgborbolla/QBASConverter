@@ -66,6 +66,10 @@ public sealed partial class VentanaDoble : Form
         // Opciones de discos (que se ve y que columnas) antes de construir.
         LeerOpcionesDiscos();
 
+        // Discos ocultos y matrices guardadas, antes de pintar nada.
+        CargarOcultos();
+        CargarMatrices();
+
         Construir();
 
         // Doble buffer en toda la ventana: se acabo el parpadeo al repintar.
@@ -82,6 +86,7 @@ public sealed partial class VentanaDoble : Form
             IniciarVigia();
             IniciarAutosave();
             EngancharTrabajos();
+            CargarPrecioGuardado();
             RefrescarPrecio();
         };
         FormClosing += (_, _) =>
@@ -294,13 +299,19 @@ public sealed partial class VentanaDoble : Form
         CargarUnidades(true);
     }
 
-    /// <summary>Recoge de los ajustes el interruptor y el precio por GB.</summary>
+    /// <summary>Recoge de los ajustes el interruptor, la tarifa y el modo de cobro.</summary>
     private void CargarPrecioGuardado()
     {
         if (_chkPrecio == null || _txtPrecioPorGb == null) return;
         _chkPrecio.Checked = Opciones.LeerBooleano("precioActivo", false);
         _txtPrecioPorGb.Text = Opciones.LeerTexto("precioPorGb", "0.50");
         _txtPrecioPorGb.Enabled = _chkPrecio.Checked;
+        if (_cmbCobro != null)
+        {
+            _cmbCobro.SelectedIndex = Math.Clamp(Opciones.LeerEntero("cobroModo", 0), 0, _cmbCobro.Items.Count - 1);
+            _cmbCobro.Enabled = _chkPrecio.Checked;
+            _lblUnidad.Text = _cmbCobro.SelectedIndex switch { 2 => "/min", 3 => "/carp.", _ => "/GB" };
+        }
     }
 
     // =====================================================================
@@ -372,8 +383,9 @@ public sealed partial class VentanaDoble : Form
     {
         if (IsDisposed || _lblCuentaDiscos == null) return;
 
-        // Solo se muestran los tipos de disco que el usuario tenga encendidos.
-        unidades = unidades.Where(DiscoVisible).ToList();
+        // Solo se muestran los tipos de disco que el usuario tenga encendidos, y
+        // nunca los que haya ocultado a mano (Refrescar no los devuelve).
+        unidades = unidades.Where(u => DiscoVisible(u) && !_ocultos.Contains(u.Root)).ToList();
 
         _unidades.Clear();
         _unidades.AddRange(unidades);
@@ -482,6 +494,10 @@ public sealed partial class VentanaDoble : Form
         /// <summary>Imagen del icono para usar como marca de agua de fondo (mejor aspecto).</summary>
         public Image? IconoFondo;
 
+        /// <summary>Colores del degradado del panel, si el tema los trae.</summary>
+        public Color? GradienteArriba;
+        public Color? GradienteAbajo;
+
         // El fondo se dibuja UNA vez en un bitmap y luego solo se pega.
         private Bitmap? _cache;
         private Size _cacheTam;
@@ -522,9 +538,10 @@ public sealed partial class VentanaDoble : Form
 
             var r = new Rectangle(0, 0, bmp.Width, bmp.Height);
 
-            // Degradado suave del panel.
-            var arriba = Estilo.Mezcla(BackColor, Color.White, 0.055f);
-            var abajo = Estilo.Mezcla(BackColor, Color.Black, 0.38f);
+            // Degradado suave del panel: si el tema trae sus dos colores, se usan tal
+            // cual (es lo que da el verde-azul de la captura); si no, se deducen.
+            var arriba = GradienteArriba ?? Estilo.Mezcla(BackColor, Color.White, 0.055f);
+            var abajo = GradienteAbajo ?? Estilo.Mezcla(BackColor, Color.Black, 0.38f);
             using (var degradado = new LinearGradientBrush(
                 new Rectangle(0, 0, r.Width, Math.Max(2, r.Height)), arriba, abajo, 90f))
                 g.FillRectangle(degradado, r);

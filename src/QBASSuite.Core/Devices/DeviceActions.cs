@@ -120,8 +120,39 @@ public static class DeviceActions
     /// <summary>Comillas simples para PowerShell (duplicando las internas).</summary>
     private static string Ps(string texto) => "'" + texto.Replace("'", "''") + "'";
 
+    /// <summary>
+    /// Repara la unidad con el comprobador de discos de Windows (chkdsk /f /x).
+    /// Si el volumen esta en uso, Windows pedira reiniciar: eso lo decide el y no
+    /// se fuerza desde aqui. Nunca se toca el disco del sistema.
+    /// </summary>
+    public static Task<DeviceActionResult> RepararAsync(
+        DeviceInfo d, CancellationToken ct = default)
+    {
+        if (d.IsSystem || d.Kind == DeviceKind.SystemDisk)
+            return Task.FromResult(DeviceActionResult.Mal("no se repara el disco del sistema"));
+        if (d.DriveLetter is not { Length: >= 2 })
+            return Task.FromResult(DeviceActionResult.Mal("la unidad no tiene letra: no se puede reparar"));
+
+        var letra = d.DriveLetter[..2];
+
+        if (OperatingSystem.IsWindows())
+        {
+            // /f corrige errores, /x fuerza el desmontaje antes de empezar.
+            // chkdsk en un disco grande tarda: se le da su propio margen amplio.
+            return EjecutarAsync("chkdsk.exe", new[] { letra, "/f", "/x" }, ct, segundosDeEspera: 900);
+        }
+        if (OperatingSystem.IsLinux())
+            return EjecutarAsync("fsck", new[] { "-y", d.Root.TrimEnd('/') }, ct, segundosDeEspera: 900);
+        if (OperatingSystem.IsMacOS())
+            return EjecutarAsync("diskutil", new[] { "verifyVolume", letra.TrimEnd(':') }, ct,
+                segundosDeEspera: 900);
+
+        return Task.FromResult(DeviceActionResult.Mal("sistema no soportado para reparar"));
+    }
+
     private static async Task<DeviceActionResult> EjecutarAsync(
-        string programa, IReadOnlyList<string> argumentos, CancellationToken ct)
+        string programa, IReadOnlyList<string> argumentos, CancellationToken ct,
+        int segundosDeEspera = 60)
     {
         try
         {
@@ -139,16 +170,16 @@ public static class DeviceActions
             if (p is null) return DeviceActionResult.Mal($"no se pudo ejecutar {programa}");
 
             // .NET 6 no tiene ReadToEndAsync(CancellationToken): se lee sin el
-            // (la espera de abajo ya lleva su propio limite de 60 s).
+            // (la espera de abajo ya lleva su propio limite, ampliable).
             var salida = await p.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
             var error = await p.StandardError.ReadToEndAsync().ConfigureAwait(false);
 
-            using var espera = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var espera = new CancellationTokenSource(TimeSpan.FromSeconds(segundosDeEspera));
             try { await p.WaitForExitAsync(espera.Token).ConfigureAwait(false); }
             catch (OperationCanceledException)
             {
                 try { p.Kill(); } catch { }
-                return DeviceActionResult.Mal($"{programa} no respondio en 60 s");
+                return DeviceActionResult.Mal($"{programa} no respondio en {segundosDeEspera} s");
             }
 
             var texto = string.IsNullOrWhiteSpace(error) ? salida : error;

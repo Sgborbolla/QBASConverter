@@ -74,7 +74,24 @@ public sealed class TrabajoDestino
     /// <summary>Ultimo fichero que toco.</summary>
     public string FicheroActual { get; internal set; } = "";
 
-    internal DateTime Inicio { get; set; }
+    /// <summary>Cuando empezo a copiar de verdad (UTC). Se usa para cobrar por duracion.</summary>
+    public DateTime Inicio { get; internal set; }
+
+    /// <summary>Cuando termino (UTC), o default si sigue trabajando.</summary>
+    public DateTime Fin { get; internal set; }
+
+    /// <summary>Tiempo que lleva copiando (o lo que tardo si ya termino).</summary>
+    public TimeSpan Duracion
+    {
+        get
+        {
+            if (Inicio == default) return TimeSpan.Zero;
+            var fin = Fin == default ? DateTime.UtcNow : Fin;
+            var d = fin - Inicio;
+            return d < TimeSpan.Zero ? TimeSpan.Zero : d;
+        }
+    }
+
     internal CancellationTokenSource? Cts { get; set; }
 
     /// <summary>0..100 del disco.</summary>

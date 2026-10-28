@@ -45,6 +45,51 @@ public sealed class CopyJobsManager : IDisposable
         get { lock (_candado) return _trabajos.ToList(); }
     }
 
+    /// <summary>El trabajo de un disco concreto, o null si no tiene ninguno.</summary>
+    public TrabajoDestino? TrabajoDe(string raiz)
+    {
+        lock (_candado)
+            return _trabajos.FirstOrDefault(x =>
+                string.Equals(x.Destino.Raiz, raiz, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Quita ficheros de la cola de UN disco (la "lista de ficheros por escribir").
+    /// Los que ya estan copiandose en esta tanda terminan; los que aun esperan, no
+    /// se copian. Devuelve cuantos se quitaron de verdad.
+    /// </summary>
+    public int QuitarPendientes(TrabajoDestino t, IEnumerable<string> rutas)
+    {
+        var set = new HashSet<string>(rutas, StringComparer.OrdinalIgnoreCase);
+        var quitados = 0;
+        lock (_candado)
+        {
+            for (var i = t.Pendientes.Count - 1; i >= 0; i--)
+            {
+                var f = t.Pendientes[i];
+                if (!set.Contains(f.FullPath)) continue;
+                t.Pendientes.RemoveAt(i);
+                t.BytesTotal = Math.Max(0, t.BytesTotal - f.Length);
+                t.FicherosTotal = Math.Max(0, t.FicherosTotal - 1);
+                quitados++;
+            }
+        }
+        if (quitados > 0) Cambio?.Invoke();
+        return quitados;
+    }
+
+    /// <summary>Copia segura de la cola pendiente de un disco (para enseñarla).</summary>
+    public IReadOnlyList<FileEntry> PendientesDe(TrabajoDestino t)
+    {
+        lock (_candado) return t.Pendientes.ToList();
+    }
+
+    /// <summary>Copia segura de lo ya terminado de un disco.</summary>
+    public IReadOnlyList<string> TerminadosDe(TrabajoDestino t)
+    {
+        lock (_candado) return t.Terminados.ToList();
+    }
+
     public bool AlgunoCopiando
     {
         get
@@ -130,6 +175,15 @@ public sealed class CopyJobsManager : IDisposable
                 {
                     lock (_candado)
                     {
+                        // Se guarda lo ultimo que se ha terminado, para que la lista
+                        // de escritura pueda enseñarlo y para cobrar por carpeta.
+                        if (!string.IsNullOrEmpty(t.FicheroActual)
+                            && !string.Equals(t.FicheroActual, p.FicheroActual, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (t.Terminados.Count == 0 || !string.Equals(t.Terminados[^1], t.FicheroActual, StringComparison.OrdinalIgnoreCase))
+                                t.Terminados.Add(t.FicheroActual);
+                        }
+
                         t.BytesHechos = t.BytesSimples + p.BytesDone;
                         t.FicherosHechos = t.FicherosSimples + p.FilesDone;
                         t.FicheroActual = p.FicheroActual;
@@ -185,6 +239,7 @@ public sealed class CopyJobsManager : IDisposable
         }
         finally
         {
+            if (t.Fin == default) t.Fin = DateTime.UtcNow;
             Terminado?.Invoke(t.Nombre, t.FicherosHechos, t.BytesHechos, t.Errores);
             Cambio?.Invoke();
         }

@@ -210,6 +210,10 @@ public sealed partial class VentanaDoble
     // =====================================================================
     private void SoltarEnDiscos(string[] rutas, DeviceInfo? destino)
     {
+        // Primero el modo elegido: «Eliminar» borra y no añade nada a la copia.
+        if (!PrepararSegunModo(rutas, destino)) return;
+
+        var modo = _modo;
         var anadidos = 0;
         foreach (var r in rutas)
         {
@@ -223,6 +227,9 @@ public sealed partial class VentanaDoble
                 _prefijosOrigen[r] = Directory.Exists(r)
                     ? NombreDeCarpeta(r)
                     : NombreDeCarpeta(Path.GetDirectoryName(r));
+
+                // Cómo se aplana al copiar («solo carpeta» / «solo ficheros»).
+                _modoPorOrigen[r] = modo;
                 anadidos++;
             }
             catch { }

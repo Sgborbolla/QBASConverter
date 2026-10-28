@@ -6,6 +6,19 @@ using QBASSuite.Util;
 
 namespace QBASSuite.Ui;
 
+/// <summary>Las cuatro formas de cobrar el trabajo del multicopiador.</summary>
+public enum ModoCobro
+{
+    /// <summary>Por GB real, con decimales.</summary>
+    PorGb = 0,
+    /// <summary>Por GB empezado: cada tramo se cobra entero.</summary>
+    PorGbComenzado = 1,
+    /// <summary>Por minuto empezado de copia real.</summary>
+    PorDuracion = 2,
+    /// <summary>Por carpeta de primer nivel copiada.</summary>
+    PorCarpeta = 3
+}
+
 /// <summary>Piezas comunes de la ventana: ajustes y trabajo en curso (formato
 /// propio .qbt, guardado junto al programa), autosave y la calculadora de
 /// precio por GB del multicopiador.</summary>
@@ -79,6 +92,7 @@ public sealed partial class VentanaDoble
             Poner("motor", _cmbMotor?.SelectedIndex ?? 0);
             Poner("precioActivo", _chkPrecio?.Checked ?? false);
             Poner("precioPorGb", _txtPrecioPorGb?.Text ?? "0.50");
+            Poner("cobroModo", _cmbCobro?.SelectedIndex ?? 0);
 
             Opciones.Escribir(datos);
         }
@@ -209,7 +223,7 @@ public sealed partial class VentanaDoble
     //  trabajo. Se calcula sobre los GB copiados DE VERDAD (no los previstos),
     //  cada disco redondea su importe a 2 decimales y luego se suman.
 
-    /// <summary>Precio por GB (0 = calculadora apagada o sin valor valido).</summary>
+    /// <summary>Precio o tarifa por unidad (0 = calculadora apagada o sin valor valido).</summary>
     private double PrecioPorGb
     {
         get
@@ -220,9 +234,51 @@ public sealed partial class VentanaDoble
         }
     }
 
+    /// <summary>Como se cobra el trabajo: por GB, por GB comenzado, por duracion o por carpeta.</summary>
+    private ModoCobro CobroActual =>
+        (ModoCobro)Math.Clamp(_cmbCobro?.SelectedIndex ?? 0, 0, (int)ModoCobro.PorCarpeta);
+
     private static long BytesDe1Gb => 1024L * 1024 * 1024;
 
-    /// <summary>Importe de UN disco: redondeado a 2 decimales (lo que se muestra).</summary>
+    /// <summary>Carpetas de primer nivel que se han copiado en un disco (para cobrar por carpeta).</summary>
+    private static int CarpetasDe(TrabajoDestino t)
+    {
+        var raiz = t.Destino.Raiz.TrimEnd('\\', '/');
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var ruta in t.Terminados)
+        {
+            var rel = ruta.StartsWith(raiz, StringComparison.OrdinalIgnoreCase)
+                ? ruta[raiz.Length..].TrimStart('\\', '/')
+                : ruta;
+            var partes = rel.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
+            // Si el fichero va suelto en la raiz, cuenta como una carpeta mas.
+            set.Add(partes.Length >= 2 ? partes[0] : "");
+        }
+        return Math.Max(1, set.Count);
+    }
+
+    /// <summary>Importe de UN disco segun el modo de cobro, redondeado a 2 decimales.</summary>
+    private double ImporteDisco(TrabajoDestino t)
+    {
+        var precio = PrecioPorGb;
+        if (precio <= 0) return 0;
+        if (t.BytesHechos <= 0 && t.Duracion <= TimeSpan.Zero) return 0;
+
+        double importe = CobroActual switch
+        {
+            // Cada GB empezado se cobra entero.
+            ModoCobro.PorGbComenzado => Math.Ceiling(t.BytesHechos / (double)BytesDe1Gb) * precio,
+            // Cada minuto empezado se cobra entero.
+            ModoCobro.PorDuracion => Math.Ceiling(t.Duracion.TotalMinutes) * precio,
+            // Cada carpeta de primer nivel copiada se cobra aparte.
+            ModoCobro.PorCarpeta => CarpetasDe(t) * precio,
+            // Por GB real, con decimales.
+            _ => t.BytesHechos / (double)BytesDe1Gb * precio
+        };
+        return Math.Round(importe, 2, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>Importe de UN disco por bytes (se conserva para las filas antiguas).</summary>
     private double ImporteDisco(long bytesCopiados)
     {
         var precio = PrecioPorGb;
@@ -242,9 +298,36 @@ public sealed partial class VentanaDoble
             if (t.Estado is not (TrabajoEstado.Hecho or TrabajoEstado.Cancelado or TrabajoEstado.Error)) continue;
             if (t.BytesHechos <= 0) continue;
             bytesContados += t.BytesHechos;
-            total += ImporteDisco(t.BytesHechos);
+            total += ImporteDisco(t);
         }
         return Math.Round(total, 2, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>Resumen de lo que se esta cobrando, para la barra de abajo.</summary>
+    private string DetalleCobro(long bytes)
+    {
+        var precio = PrecioPorGb;
+        if (CobroActual == ModoCobro.PorDuracion)
+        {
+            var segundos = _trabajos.Trabajos.Sum(t => t.Duracion.TotalSeconds);
+            var minutos = (long)Math.Ceiling(segundos / 60.0);
+            return $"{minutos} min a {Dinero(precio)}/min";
+        }
+        if (CobroActual == ModoCobro.PorCarpeta)
+        {
+            var carpetas = _trabajos.Trabajos
+                .Where(t => t.Estado is TrabajoEstado.Hecho or TrabajoEstado.Cancelado or TrabajoEstado.Error)
+                .Sum(CarpetasDe);
+            return $"{carpetas} carpeta(s) a {Dinero(precio)}/carpeta";
+        }
+        if (CobroActual == ModoCobro.PorGbComenzado)
+        {
+            var tramos = _trabajos.Trabajos
+                .Where(t => t.Estado is TrabajoEstado.Hecho or TrabajoEstado.Cancelado or TrabajoEstado.Error)
+                .Sum(t => (long)Math.Ceiling(t.BytesHechos / (double)BytesDe1Gb));
+            return $"{tramos} GB comenzado(s) a {Dinero(precio)}/GB";
+        }
+        return $"{Gb(bytes)} GB a {Dinero(precio)}/GB";
     }
 
     private static string Dinero(double importe) =>
@@ -261,11 +344,11 @@ public sealed partial class VentanaDoble
         {
             string texto;
             if (precio <= 0)
-                texto = _chkPrecio is { Checked: true } ? "Precio por GB no válido." : "";
+                texto = _chkPrecio is { Checked: true } ? "La tarifa no es válida." : "";
             else
             {
                 var total = ImporteTotal(out var bytes);
-                texto = $"TOTAL: {Dinero(total)}   ·   {Gb(bytes)} GB a {Dinero(precio)}/GB";
+                texto = $"TOTAL: {Dinero(total)}   ·   {DetalleCobro(bytes)}";
             }
             if (_lblPrecioTotal.Text != texto) _lblPrecioTotal.Text = texto;
             if (_lblPrecioTotal.ForeColor != _tema.Hecho) _lblPrecioTotal.ForeColor = _tema.Hecho;
@@ -317,6 +400,8 @@ public sealed partial class VentanaDoble
         if (_fondoDiscos != null)
         {
             _fondoDiscos.BackColor = _tema.PanelDiscos;
+            _fondoDiscos.GradienteArriba = _tema.PanelDiscosArriba;
+            _fondoDiscos.GradienteAbajo = _tema.PanelDiscosAbajo;
             _fondoDiscos.InvalidarFondo();
         }
         AplicarTemaRecursivo(this);
