@@ -385,7 +385,10 @@ public sealed partial class VentanaDoble : Form
 
         // Solo se muestran los tipos de disco que el usuario tenga encendidos, y
         // nunca los que haya ocultado a mano (Refrescar no los devuelve).
-        unidades = unidades.Where(u => DiscoVisible(u) && !_ocultos.Contains(u.Root)).ToList();
+        var visibles = unidades.Where(u => DiscoVisible(u) && !_ocultos.Contains(u.Root)).ToList();
+        if (_ocultos.Count > 0)
+            foreach (var oculto in _ocultos.ToList()) _destinos.Remove(oculto);
+        unidades = visibles;
 
         _unidades.Clear();
         _unidades.AddRange(unidades);

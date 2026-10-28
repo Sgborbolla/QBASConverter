@@ -443,6 +443,7 @@ public sealed partial class VentanaDoble
         if (lista.Count == 0) { Mensaje("Marca los discos que quieres ocultar."); return; }
 
         foreach (var r in lista) _ocultos.Add(r);
+        foreach (var r in lista) _destinos.Remove(r);
         GuardarOcultos();
         PintarDiscos();
         Mensaje($"{lista.Count} disco(s) ocultos. «Mostrar ocultos» está en el menú de matrices.");

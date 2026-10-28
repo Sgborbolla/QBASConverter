@@ -460,8 +460,11 @@ public sealed partial class VentanaDoble
         fila.DoubleClick += (_, _) =>
         {
             AlternarDestino(u);
-            if (_trabajos.TrabajoDe(u.Root) != null) AbrirListaEscritura(u);
-            else AbrirNavegador(u);
+            var trabajo = _trabajos.TrabajoDe(u.Root);
+            if (trabajo is { Estado: TrabajoEstado.Copiando or TrabajoEstado.EnCola or TrabajoEstado.Pausado })
+                AbrirListaEscritura(u);
+            else
+                AbrirNavegador(u);
         };
 
         // Arrastrar y soltar en toda la fila (y sus botones): se anade el origen y
